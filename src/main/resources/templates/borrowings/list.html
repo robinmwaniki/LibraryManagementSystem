@@ -1,0 +1,124 @@
+<!-- src/main/resources/templates/borrowings/list.html -->
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borrowings - Library Management</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}">📚 Library Management</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" th:href="@{/}">🏠 Home</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/books}">📖 Books</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/members}">👥 Members</a></li>
+                <li class="nav-item"><a class="nav-link active" th:href="@{/borrowings}">📋 Borrowings</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/settings}">⚙️ Settings</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-exchange-alt me-2"></i>Borrowing Records</h2>
+        <div>
+            <a th:href="@{/borrowings/borrow}" class="btn btn-primary me-2">
+                <i class="fas fa-hand-holding me-1"></i>Borrow Book
+            </a>
+            <a th:href="@{/borrowings/return}" class="btn btn-warning">
+                <i class="fas fa-undo me-1"></i>Return Book
+            </a>
+        </div>
+    </div>
+
+    <!-- Overdue Alerts -->
+    <div th:if="${overdueBorrowings != null && !overdueBorrowings.empty}" class="alert alert-danger">
+        <h5><i class="fas fa-exclamation-triangle me-2"></i>Overdue Books</h5>
+        <p class="mb-0" th:text="${overdueBorrowings.size() + ' book(s) are overdue!'}">0 books are overdue!</p>
+    </div>
+
+    <!-- Borrowings Table -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive" th:if="${borrowings != null && !borrowings.empty}">
+                <table class="table table-hover">
+                    <thead class="table-dark">
+                    <tr>
+                        <th>Book</th>
+                        <th>Member</th>
+                        <th>Borrow Date</th>
+                        <th>Due Date</th>
+                        <th>Return Date</th>
+                        <th>Status</th>
+                        <th>Fine</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="borrowing : ${borrowings}">
+                        <td th:text="${borrowing.book.title}">Book Title</td>
+                        <td th:text="${borrowing.member.firstName + ' ' + borrowing.member.lastName}">Member Name</td>
+                        <td th:text="${#temporals.format(borrowing.borrowDate, 'dd MMM yyyy')}">01 Jan 2024</td>
+                        <td th:text="${#temporals.format(borrowing.dueDate, 'dd MMM yyyy')}">15 Jan 2024</td>
+                        <td>
+                                    <span th:if="${borrowing.returnDate != null}"
+                                          th:text="${#temporals.format(borrowing.returnDate, 'dd MMM yyyy')}">20 Jan 2024</span>
+                            <span th:unless="${borrowing.returnDate != null}" class="text-muted">Not returned</span>
+                        </td>
+                        <td>
+                                    <span class="badge"
+                                          th:classappend="${borrowing.status.toString() == 'BORROWED'} ? 'bg-primary' : (${borrowing.status.toString() == 'RETURNED'} ? 'bg-success' : 'bg-danger')"
+                                          th:text="${borrowing.status}">BORROWED</span>
+                        </td>
+                        <td>
+                                    <span th:if="${borrowing.fine != null && borrowing.fine > 0}"
+                                          class="text-danger"
+                                          th:text="'$' + ${#numbers.formatDecimal(borrowing.fine, 0, 2)}">$0.00</span>
+                            <span th:unless="${borrowing.fine != null && borrowing.fine > 0}">-</span>
+                        </td>
+                        <td>
+                            <form th:if="${borrowing.status.toString() == 'BORROWED'}"
+                                  th:action="@{/borrowings/return/{id}(id=${borrowing.id})}"
+                                  method="post" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-success">
+                                    <i class="fas fa-check"></i> Return
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Empty State -->
+            <div th:if="${borrowings == null || borrowings.empty}" class="text-center py-5">
+                <i class="fas fa-book fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">No borrowing records found</h4>
+                <p class="text-muted">Start by borrowing a book.</p>
+                <a th:href="@{/borrowings/borrow}" class="btn btn-primary">
+                    <i class="fas fa-hand-holding me-1"></i>Borrow a Book
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer class="footer mt-5 py-3 bg-light">
+    <div class="container text-center">
+        <span class="text-muted">© 2026 Robin's Library Management System</span>
+    </div>
+</footer>
+
+<script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

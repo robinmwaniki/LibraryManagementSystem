@@ -1,0 +1,315 @@
+<!-- src/main/resources/templates/borrowings/return.html -->
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Return Book - Library Management</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+
+    <style>
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .card-header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .overdue {
+            border-left: 5px solid #dc3545;
+        }
+        .fine-amount {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #dc3545;
+        }
+        .book-card {
+            transition: all 0.3s ease;
+        }
+        .book-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}">
+            📚 Library Management
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/}">🏠 Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/books}">📖 Books</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/members}">👥 Members</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" th:href="@{/borrowings}">📋 Borrowings</a>
+                </li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/settings}">⚙️ Settings</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="container mt-4">
+    <div class="form-container">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a th:href="@{/}">Home</a></li>
+                <li class="breadcrumb-item"><a th:href="@{/borrowings}">Borrowings</a></li>
+                <li class="breadcrumb-item active">Return Book</li>
+            </ol>
+        </nav>
+
+        <!-- Return Form Card -->
+        <div class="card shadow">
+            <div class="card-header text-white">
+                <h4 class="mb-0">
+                    ↩️ Return a Book
+                </h4>
+            </div>
+            <div class="card-body">
+                <!-- Alert Messages -->
+                <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+                    ✅ <span th:text="${success}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    ❌ <span th:text="${error}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <div th:if="${warning}" class="alert alert-warning alert-dismissible fade show" role="alert">
+                    ⚠️ <span th:text="${warning}"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+
+                <!-- Search Member Section -->
+                <div class="mb-4">
+                    <h5>🔍 Find Active Borrowings</h5>
+                    <form th:action="@{/borrowings/return}" method="get" class="row g-3">
+                        <div class="col-md-8">
+                            <label for="memberId" class="form-label">Select Member</label>
+                            <select class="form-select" id="memberId" name="memberId"
+                                    onchange="this.form.submit()">
+                                <option value="">Choose a member to see their active borrowings...</option>
+                                <option th:each="member : ${members}"
+                                        th:value="${member.id}"
+                                        th:text="${member.firstName + ' ' + member.lastName + ' (' + member.email + ')'}"
+                                        th:selected="${selectedMemberId != null && selectedMemberId == member.id}">
+                                    Member Name
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                🔍 View Active Borrowings
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Active Borrowings List -->
+                <div th:if="${activeBorrowings != null && !activeBorrowings.empty}">
+                    <h5 class="mb-3">
+                        📚 Active Borrowings for
+                        <strong th:text="${memberName}">Member Name</strong>
+                        <span class="badge bg-primary ms-2"
+                              th:text="${activeBorrowings.size()} + ' book(s)'">0 books</span>
+                    </h5>
+
+                    <!-- Overdue Warning -->
+                    <div th:if="${overdueCount > 0}" class="alert alert-danger">
+                        ⚠️ <strong>Warning:</strong>
+                        <span th:text="${overdueCount}">0</span> book(s) are overdue!
+                        Fines apply at $1.00 per day.
+                    </div>
+
+                    <!-- Borrowings Cards -->
+                    <div th:each="borrowing : ${activeBorrowings}" class="card mb-3 book-card"
+                         th:classappend="${borrowing.dueDate < #temporals.createNow()} ? 'overdue' : ''">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-7">
+                                    <h5 class="card-title" th:text="${borrowing.book.title}">Book Title</h5>
+                                    <p class="card-text mb-1">
+                                        <strong>Author:</strong>
+                                        <span th:text="${borrowing.book.author}">Author</span>
+                                    </p>
+                                    <p class="card-text mb-1">
+                                        <strong>ISBN:</strong>
+                                        <span th:text="${borrowing.book.isbn}">ISBN</span>
+                                    </p>
+                                    <p class="card-text mb-0">
+                                        <strong>Borrowed:</strong>
+                                        <span th:text="${#temporals.format(borrowing.borrowDate, 'dd MMM yyyy')}">Date</span>
+                                        <span class="mx-2">|</span>
+                                        <strong>Due:</strong>
+                                        <span th:text="${#temporals.format(borrowing.dueDate, 'dd MMM yyyy')}">Date</span>
+                                    </p>
+                                </div>
+                                <div class="col-md-5 text-end">
+                                    <!-- Overdue Information -->
+                                    <div th:if="${borrowing.dueDate < #temporals.createNow()}">
+                                        <p class="text-danger mb-1">
+                                            ⚠️ Overdue by
+                                            <span th:text="${#temporals.daysBetween(borrowing.dueDate, #temporals.createNow())}">0</span>
+                                            days
+                                        </p>
+                                        <p class="mb-1">
+                                            <strong>Fine:</strong>
+                                            <span class="fine-amount">
+                                                    $<span th:text="${#numbers.formatDecimal(#temporals.daysBetween(borrowing.dueDate, #temporals.createNow()) * 1.0, 0, 2)}">0.00</span>
+                                                </span>
+                                        </p>
+                                    </div>
+                                    <div th:unless="${borrowing.dueDate < #temporals.createNow()}">
+                                        <p class="text-success mb-1">✅ On Time</p>
+                                        <p class="mb-1"><strong>No Fine</strong></p>
+                                    </div>
+
+                                    <!-- Return Button -->
+                                    <form th:action="@{/borrowings/return/{id}(id=${borrowing.id})}"
+                                          method="post"
+                                          class="mt-2">
+                                        <input type="hidden" name="memberId" th:value="${selectedMemberId}">
+                                        <button type="submit" class="btn btn-success">
+                                            ↩️ Return This Book
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- No Active Borrowings -->
+                <div th:if="${activeBorrowings != null && activeBorrowings.empty && selectedMemberId != null}"
+                     class="text-center py-5">
+                    <div style="font-size: 4rem;">📚</div>
+                    <h4 class="text-muted">No Active Borrowings</h4>
+                    <p class="text-muted">This member has no books to return.</p>
+                </div>
+
+                <!-- No Member Selected -->
+                <div th:if="${selectedMemberId == null}" class="text-center py-5">
+                    <div style="font-size: 4rem;">👆</div>
+                    <h4 class="text-muted">Select a Member</h4>
+                    <p class="text-muted">Please select a member from the dropdown above to see their active borrowings.</p>
+                </div>
+            </div>
+
+            <!-- Card Footer -->
+            <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        ℹ️ Late return fine: KSH1.00 per day after due date
+                    </small>
+                    <a th:href="@{/borrowings}" class="btn btn-sm btn-secondary">
+                        📋 View All Borrowings
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Return Instructions -->
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">ℹ️ Return Instructions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>1️⃣ Select Member</h6>
+                        <p class="text-muted">Choose the member who wants to return a book.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>2️⃣ Find Book</h6>
+                        <p class="text-muted">View their active borrowings and select the book to return.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>3️⃣ Confirm Return</h6>
+                        <p class="text-muted">Click "Return This Book" to complete the process. Fines will be calculated automatically.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="footer mt-5 py-3 bg-light">
+    <div class="container text-center">
+        <span class="text-muted">© 2026 Robin's Library Management System. All rights reserved.</span>
+    </div>
+</footer>
+
+<!-- Bootstrap JS -->
+<script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
+
+<!-- Custom JavaScript -->
+<script>
+    // Auto-submit when member is selected
+    document.addEventListener('DOMContentLoaded', function() {
+        var memberSelect = document.getElementById('memberId');
+        if (memberSelect) {
+            memberSelect.addEventListener('change', function() {
+                if (this.value) {
+                    this.form.submit();
+                }
+            });
+        }
+    });
+
+    // Confirm return with fine warning
+    document.querySelectorAll('form[action*="/borrowings/return/"]').forEach(function(form) {
+        form.addEventListener('submit', function(event) {
+            var fineElement = this.closest('.card-body').querySelector('.fine-amount');
+            var isOverdue = this.closest('.card-body').querySelector('.text-danger');
+
+            var message = 'Are you sure you want to return this book?';
+
+            if (isOverdue && fineElement) {
+                message = 'This book is overdue!\n\nFine to pay: ' + fineElement.textContent.trim() +
+                    '\n\nDo you want to proceed with the return?';
+            }
+
+            if (!confirm(message)) {
+                event.preventDefault();
+            }
+        });
+    });
+
+    // Auto-hide alerts after 5 seconds
+    setTimeout(function() {
+        var alerts = document.querySelectorAll('.alert-dismissible');
+        alerts.forEach(function(alert) {
+            var bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        });
+    }, 5000);
+
+    // Highlight overdue books
+    document.querySelectorAll('.overdue').forEach(function(card) {
+        card.style.backgroundColor = '#fff5f5';
+    });
+</script>
+</body>
+</html>

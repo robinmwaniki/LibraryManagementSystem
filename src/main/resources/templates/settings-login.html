@@ -1,0 +1,52 @@
+<!-- src/main/resources/templates/settings-login.html -->
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Login - Library Management</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}">📚 Library Management</a>
+    </div>
+</nav>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+
+            <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                ❌ <span th:text="${error}"></span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white text-center">
+                    <h4 class="mb-0">🔒 Manager Login</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted text-center">Enter the manager password to access Library Settings.</p>
+                    <form th:action="@{/settings/login}" method="post">
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password"
+                                   name="password" placeholder="Enter password" required autofocus>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">🔓 Log In</button>
+                    </form>
+                    <div class="text-center mt-3">
+                        <a th:href="@{/}" class="text-muted">← Back to Home</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>

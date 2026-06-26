@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Members - Library Management</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+
+    <!-- Your Custom CSS -->
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<!-- Navigation -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}">📚 Library Management</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/}">🏠 Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/books}">📖 Books</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" th:href="@{/members}">👥 Members</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" th:href="@{/borrowings}">📋 Borrowings</a>
+                </li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/settings}">⚙️ Settings</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-success">👥 Members Management</h2>
+        <a th:href="@{/members/add}" class="btn btn-success btn-lg">➕ Register Member</a>
+    </div>
+
+    <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+        ✅ <span th:text="${success}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">All Members</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive" th:if="${members != null && !members.empty}">
+                <table class="table table-hover">
+                    <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Max Books</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="member : ${members}">
+                        <td><strong th:text="${member.firstName + ' ' + member.lastName}">Name</strong></td>
+                        <td th:text="${member.email}">Email</td>
+                        <td th:text="${member.phone}">Phone</td>
+                        <td>
+                                    <span class="badge"
+                                          th:classappend="${member.status.toString() == 'ACTIVE'} ? 'bg-success' : 'bg-danger'"
+                                          th:text="${member.status}">Status</span>
+                        </td>
+                        <td th:text="${member.maxBooksAllowed}">5</td>
+                        <td>
+                            <a th:href="@{/members/edit/{id}(id=${member.id})}"
+                               class="btn btn-sm btn-warning me-1">✏️</a>
+                            <a th:href="@{/members/delete/{id}(id=${member.id})}"
+                               class="btn btn-sm btn-danger"
+                               onclick="return confirm('Delete this member?')">🗑️</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div th:if="${members == null || members.empty}" class="text-center py-5">
+                <span style="font-size: 4rem;">👥</span>
+                <h4 class="text-muted mt-3">No members registered</h4>
+                <p class="text-muted">Start by registering a new library member.</p>
+                <a th:href="@{/members/add}" class="btn btn-success btn-lg">➕ Register Member</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="footer mt-5 py-3 bg-light">
+    <div class="container text-center">
+        <span class="text-muted">© 2026 Robin's Library Management System</span>
+    </div>
+</footer>
+
+<!-- Bootstrap JS -->
+<script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>
