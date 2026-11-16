@@ -48,4 +48,10 @@ public interface BookRepository extends JpaRepository<Book, Long> {
                            Pageable pageable);
 
     List<Book> findTop5ByOrderByCreatedAtDesc();
+
+    @Query("SELECT COALESCE(SUM(b.totalCopies), 0) FROM Book b")
+    Long sumTotalCopies();
+
+    @Query("SELECT COALESCE(SUM(b.availableCopies), 0) FROM Book b")
+    Long sumAvailableCopies();
 }
