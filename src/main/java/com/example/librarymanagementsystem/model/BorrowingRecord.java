@@ -43,7 +43,7 @@ public class BorrowingRecord {
 
     private Double fine;
 
-    @Column(name = "renewal_count", nullable = false)
+    @Column(name = "renewal_count")
     private Integer renewalCount = 0;
 
     @Column(name = "last_reminder_sent_at")
