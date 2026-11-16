@@ -34,6 +34,8 @@ public interface BorrowingRepository extends JpaRepository<BorrowingRecord, Long
 
     boolean existsByMemberId(Long memberId);
 
+    boolean existsByBookId(Long bookId);
+
     @Query("SELECT COUNT(br) FROM BorrowingRecord br WHERE br.status = 'BORROWED' AND br.dueDate < CURRENT_TIMESTAMP")
     long countOverdueBorrowings();
 
