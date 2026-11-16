@@ -93,6 +93,14 @@ public class BookService {
         return bookRepository.findDistinctCategories();
     }
 
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<Book> searchBooks(String search, String category,
+            boolean availableOnly, org.springframework.data.domain.Pageable pageable) {
+        String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+        String normalizedCategory = category == null || category.isBlank() ? null : category.trim();
+        return bookRepository.searchBooks(normalizedSearch, normalizedCategory, availableOnly, pageable);
+    }
+
     private void mapDTOToBook(BookDTO dto, Book book) {
         book.setIsbn(normalizeIsbn(dto.getIsbn()));
         book.setTitle(dto.getTitle().trim());
