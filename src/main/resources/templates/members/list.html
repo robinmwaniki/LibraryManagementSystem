@@ -51,6 +51,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
     <div class="card shadow">
         <div class="card-header bg-dark text-white">
             <h5 class="mb-0">All Members</h5>
@@ -82,9 +83,7 @@
                         <td>
                             <a th:href="@{/members/edit/{id}(id=${member.id})}"
                                class="btn btn-sm btn-warning me-1">✏️</a>
-                            <a th:href="@{/members/delete/{id}(id=${member.id})}"
-                               class="btn btn-sm btn-danger"
-                               onclick="return confirm('Delete this member?')">🗑️</a>
+                            <form class="d-inline" method="post" th:action="@{/members/delete/{id}(id=${member.id})}" onsubmit="return confirm('Delete this member?')"><button class="btn btn-sm btn-danger" type="submit">Delete</button></form>
                         </td>
                     </tr>
                     </tbody>
