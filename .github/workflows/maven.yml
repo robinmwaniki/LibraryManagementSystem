@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -18,7 +19,7 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
+      - name: Verify Maven installation
+        run: mvn --version
       - name: Run tests
-        run: |
-          chmod +x mvnw
-          ./mvnw --batch-mode --no-transfer-progress clean verify
+        run: mvn --batch-mode --no-transfer-progress clean verify
