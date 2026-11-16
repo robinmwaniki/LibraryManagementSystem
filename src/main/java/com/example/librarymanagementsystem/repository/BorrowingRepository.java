@@ -28,4 +28,14 @@ public interface BorrowingRepository extends JpaRepository<BorrowingRecord, Long
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT br FROM BorrowingRecord br WHERE br.id = :id")
     Optional<BorrowingRecord> findByIdForUpdate(@Param("id") Long id);
+
+    long countByStatus(BorrowingRecord.BorrowStatus status);
+
+    boolean existsByMemberId(Long memberId);
+
+    @Query("SELECT COUNT(br) FROM BorrowingRecord br WHERE br.status = 'BORROWED' AND br.dueDate < CURRENT_TIMESTAMP")
+    long countOverdueBorrowings();
+
+    @Query("SELECT COALESCE(SUM(br.fine), 0) FROM BorrowingRecord br")
+    Double sumRecordedFines();
 }
