@@ -44,7 +44,7 @@ docker compose up --build
 Render runs the application as a Docker Web Service and the database as a separate Render PostgreSQL instance. Do not deploy the local `docker-compose.yml` stack as a single Render service.
 
 1. Create a PostgreSQL database in Render. Keep it in the same region as the web service so the application can use the database's **internal host**.
-2. Create a Web Service connected to this repository and select the `master` branch.
+2. Create a Web Service connected to this repository and select the `develop` branch.
 3. Set the runtime to **Docker** and use the repository-root `Dockerfile`.
 4. Set the health check path to `/actuator/health`.
 5. Add these environment variables to the web service:
