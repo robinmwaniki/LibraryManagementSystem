@@ -71,16 +71,8 @@
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="category" class="form-label">Category *</label>
-                                <select class="form-select" id="category" th:field="*{category}" required>
-                                    <option value="">Select Category</option>
-                                    <option value="Fiction">Fiction</option>
-                                    <option value="Non-Fiction">Non-Fiction</option>
-                                    <option value="Science">Science</option>
-                                    <option value="Technology">Technology</option>
-                                    <option value="History">History</option>
-                                    <option value="Fantasy">Fantasy</option>
-                                    <option value="Mystery">Mystery</option>
-                                </select>
+                                <input class="form-control" id="category" list="book-categories" th:field="*{category}" placeholder="e.g. Fiction, Science" required>
+                                <datalist id="book-categories"><option th:each="item : ${categories}" th:value="${item}"></option></datalist>
                             </div>
                         </div>
 
@@ -115,11 +107,7 @@
                                 <input type="number" class="form-control" id="totalCopies"
                                        th:field="*{totalCopies}" min="1" required>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label for="availableCopies" class="form-label">Available Copies</label>
-                                <input type="number" class="form-control" id="availableCopies"
-                                       th:field="*{availableCopies}" min="0">
-                            </div>
+                            
                             <div class="col-md-4 mb-3">
                                 <label for="shelfLocation" class="form-label">Shelf Location</label>
                                 <input type="text" class="form-control" id="shelfLocation"
