@@ -87,9 +87,14 @@ public class MemberWebController {
         return "redirect:/members";
     }
 
-    @GetMapping("/delete/{id}")
-    public String deleteMember(@PathVariable Long id) {
-        memberService.deleteMember(id);
+    @PostMapping("/delete/{id}")
+    public String deleteMember(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            memberService.deleteMember(id);
+            redirectAttributes.addFlashAttribute("success", "Member deleted successfully.");
+        } catch (RuntimeException ex) {
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        }
         return "redirect:/members";
     }
 }
