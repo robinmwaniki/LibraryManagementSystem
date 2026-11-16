@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -79,6 +80,17 @@ public class BorrowingWebController {
             model.addAttribute("activeBorrowings", Collections.emptyList());
         }
         return "borrowings/return";
+    }
+
+    @PostMapping("/renew/{id}")
+    public String renewBook(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            borrowingService.renewBook(id);
+            redirectAttributes.addFlashAttribute("success", "Loan renewed successfully.");
+        } catch (RuntimeException ex) {
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        }
+        return "redirect:/borrowings";
     }
 
     @PostMapping("/return/{id}")
