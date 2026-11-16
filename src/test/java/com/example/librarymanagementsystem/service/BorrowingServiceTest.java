@@ -75,4 +75,27 @@ class BorrowingServiceTest {
         assertThrows(IllegalStateException.class, () -> borrowingService.returnBook(3L));
         verify(bookRepository, times(1)).save(book);
     }
+    @Test
+    void renewBookAllowsOnlyOneRenewalForAnActiveLoan() {
+        BorrowingRecord record = new BorrowingRecord();
+        record.setId(9L);
+        record.setStatus(BorrowingRecord.BorrowStatus.BORROWED);
+        LocalDateTime originalDueDate = LocalDateTime.now().plusDays(2);
+        record.setDueDate(originalDueDate);
+        record.setRenewalCount(0);
+
+        LibrarySettings settings = new LibrarySettings();
+        settings.setLoanPeriodDays(14);
+        when(borrowingRepository.findByIdForUpdate(9L)).thenReturn(Optional.of(record));
+        when(librarySettingsService.getSettings()).thenReturn(settings);
+        when(borrowingRepository.save(any(BorrowingRecord.class))).thenAnswer(i -> i.getArgument(0));
+
+        BorrowingRecord renewed = borrowingService.renewBook(9L);
+        assertEquals(1, renewed.getRenewalCount());
+        assertEquals(originalDueDate.plusDays(14), renewed.getDueDate());
+
+        assertThrows(IllegalStateException.class, () -> borrowingService.renewBook(9L));
+        verify(borrowingRepository, times(1)).save(record);
+    }
+
 }
