@@ -9,7 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -21,5 +21,40 @@ jobs:
           cache: maven
       - name: Verify Maven installation
         run: mvn --version
-      - name: Run tests
+      - name: Run unit and PostgreSQL 18 integration tests
         run: mvn --batch-mode --no-transfer-progress clean verify
+
+      - name: Create CI environment file
+        run: |
+          cat > .env <<'EOF'
+          POSTGRES_DB=library_ci
+          POSTGRES_USER=library_ci
+          DB_PASSWORD=ci-database-password
+          LIBRARY_ADMIN_USERNAME=ci-admin
+          LIBRARY_ADMIN_PASSWORD=ci-admin-password
+          LIBRARY_NOTIFICATIONS_ENABLED=false
+          EOF
+
+      - name: Build and start Docker Compose stack
+        run: docker compose up --build --detach
+
+      - name: Wait for application health
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:8080/actuator/health; then
+              echo "Application health check passed."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Application did not become healthy."
+          docker compose logs
+          exit 1
+
+      - name: Show Docker Compose logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Stop Docker Compose stack
+        if: always()
+        run: docker compose down --volumes --remove-orphans
