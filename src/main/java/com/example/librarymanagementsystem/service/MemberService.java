@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,12 @@ public class MemberService {
 
     public List<Member> getAllMembers() {
         return memberRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Member> searchMembers(String search, Member.MembershipStatus status, Pageable pageable) {
+        String term = search == null || search.isBlank() ? null : search.trim();
+        return memberRepository.searchMembers(term, status, pageable);
     }
 
     public Member getMemberById(Long id) {
