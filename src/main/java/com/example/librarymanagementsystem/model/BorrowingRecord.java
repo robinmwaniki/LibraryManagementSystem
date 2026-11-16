@@ -43,6 +43,9 @@ public class BorrowingRecord {
 
     private Double fine;
 
+    @Column(name = "last_reminder_sent_at")
+    private LocalDateTime lastReminderSentAt;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
