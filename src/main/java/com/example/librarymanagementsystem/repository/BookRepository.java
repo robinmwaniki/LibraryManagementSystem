@@ -2,6 +2,8 @@ package com.example.librarymanagementsystem.repository;
 
 import com.example.librarymanagementsystem.model.Book;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -30,4 +32,20 @@ public interface BookRepository extends JpaRepository<Book, Long> {
 
     @Query("SELECT DISTINCT b.category FROM Book b WHERE b.category IS NOT NULL AND TRIM(b.category) <> '' ORDER BY b.category")
     List<String> findDistinctCategories();
+
+    @Query("""
+        SELECT b FROM Book b
+        WHERE (:term IS NULL OR :term = ''
+            OR LOWER(b.title) LIKE LOWER(CONCAT('%', :term, '%'))
+            OR LOWER(b.author) LIKE LOWER(CONCAT('%', :term, '%'))
+            OR LOWER(COALESCE(b.isbn, '')) LIKE LOWER(CONCAT('%', :term, '%')))
+          AND (:category IS NULL OR :category = '' OR LOWER(b.category) = LOWER(:category))
+          AND (:availableOnly = false OR b.availableCopies > 0)
+        """)
+    Page<Book> searchBooks(@Param("term") String term,
+                           @Param("category") String category,
+                           @Param("availableOnly") boolean availableOnly,
+                           Pageable pageable);
+
+    List<Book> findTop5ByOrderByCreatedAtDesc();
 }
