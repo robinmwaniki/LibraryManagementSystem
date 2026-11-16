@@ -13,7 +13,7 @@ A Spring Boot and Thymeleaf application for managing a library catalogue, member
 
 ## Local setup
 
-1. Install JDK 21, Maven (or use the included Maven wrapper), and MySQL. XAMPP is supported.
+1. Install JDK 21, Maven, and MySQL. XAMPP is supported.
 2. Create a MySQL database named library_db, or allow the configured JDBC URL to create it.
 3. Set the administrator and database environment variables before starting the application.
 
