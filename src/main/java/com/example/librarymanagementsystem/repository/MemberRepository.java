@@ -17,6 +17,8 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     List<Member> findByLastNameContainingIgnoreCase(String lastName);
     List<Member> findByStatus(Member.MembershipStatus status);
     boolean existsByEmail(String email);
+    boolean existsByEmailAndIdNot(String email, Long id);
+    long countByStatus(Member.MembershipStatus status);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT m FROM Member m WHERE m.id = :id")
