@@ -22,8 +22,9 @@
                 <li class="nav-item"><a class="nav-link" th:href="@{/books}">📖 Books</a></li>
                 <li class="nav-item"><a class="nav-link" th:href="@{/members}">👥 Members</a></li>
                 <li class="nav-item"><a class="nav-link active" th:href="@{/borrowings}">📋 Borrowings</a></li>
-                <li class="nav-item"><a class="nav-link" th:href="@{/settings}">⚙️ Settings</a></li>
+                <li class="nav-item"><a class="nav-link" th:href="@{/reports}">Reports</a></li><li class="nav-item"><a class="nav-link" th:href="@{/settings}">Settings</a></li>
             </ul>
+            <form th:action="@{/logout}" method="post"><button class="btn btn-outline-light btn-sm" type="submit">Sign out</button></form>
         </div>
     </div>
 </nav>
@@ -40,6 +41,9 @@
             </a>
         </div>
     </div>
+
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
 
     <!-- Overdue Alerts -->
     <div th:if="${overdueBorrowings != null && !overdueBorrowings.empty}" class="alert alert-danger">
@@ -87,13 +91,16 @@
                             <span th:unless="${borrowing.fine != null && borrowing.fine > 0}">-</span>
                         </td>
                         <td>
-                            <form th:if="${borrowing.status.toString() == 'BORROWED'}"
-                                  th:action="@{/borrowings/return/{id}(id=${borrowing.id})}"
-                                  method="post" style="display: inline;">
-                                <button type="submit" class="btn btn-sm btn-success">
-                                    <i class="fas fa-check"></i> Return
-                                </button>
-                            </form>
+                            <div class="d-flex gap-1">
+                                <form th:if="${borrowing.status.toString() == 'BORROWED' && (borrowing.renewalCount == null || borrowing.renewalCount < 1)}"
+                                      th:action="@{/borrowings/renew/{id}(id=${borrowing.id})}" method="post">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">Renew</button>
+                                </form>
+                                <form th:if="${borrowing.status.toString() == 'BORROWED'}"
+                                      th:action="@{/borrowings/return/{id}(id=${borrowing.id})}" method="post">
+                                    <button type="submit" class="btn btn-sm btn-success">Return</button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     </tbody>

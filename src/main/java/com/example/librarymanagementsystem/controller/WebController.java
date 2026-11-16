@@ -1,54 +1,39 @@
 package com.example.librarymanagementsystem.controller;
 
-
-
 import com.example.librarymanagementsystem.model.Book;
+import com.example.librarymanagementsystem.model.BorrowingRecord;
 import com.example.librarymanagementsystem.model.Member;
-import com.example.librarymanagementsystem.service.BookService;
-import com.example.librarymanagementsystem.service.BorrowingService;
-import com.example.librarymanagementsystem.service.MemberService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.example.librarymanagementsystem.repository.BookRepository;
+import com.example.librarymanagementsystem.repository.BorrowingRepository;
+import com.example.librarymanagementsystem.repository.MemberRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.List;
+import java.util.Map;
 
 @Controller
+@RequiredArgsConstructor
 public class WebController {
-
-    @Autowired
-    private BookService bookService;
-
-    @Autowired
-    private MemberService memberService;
-
-    @Autowired
-    private BorrowingService borrowingService;
+    private final BookRepository bookRepository;
+    private final MemberRepository memberRepository;
+    private final BorrowingRepository borrowingRepository;
 
     @GetMapping("/")
     public String home(Model model) {
-        model.addAttribute("pageTitle", "Library Management System");
-
-        // Get statistics for dashboard
-        List<Book> allBooks = bookService.getAllBooks();
-        List<Member> allMembers = memberService.getAllMembers();
-
-        model.addAttribute("stats", new Object() {
-            public final long totalBooks = allBooks.size();
-            public final long activeMembers = allMembers.stream()
-                    .filter(m -> m.getStatus() == Member.MembershipStatus.ACTIVE).count();
-            public final long activeBorrowings = borrowingService.getAllBorrowings().stream()
-                    .filter(b -> b.getStatus() == com.example.librarymanagementsystem.model.BorrowingRecord.BorrowStatus.BORROWED).count();
-        });
-
-        // Get recent books (last 5)
-        List<Book> recentBooks = allBooks;
-        if (recentBooks.size() > 5) {
-            recentBooks = recentBooks.subList(recentBooks.size() - 5, recentBooks.size());
-        }
+        model.addAttribute("pageTitle", "Library Dashboard");
+        model.addAttribute("stats", Map.of(
+                "bookTitles", bookRepository.count(),
+                "totalCopies", bookRepository.sumTotalCopies(),
+                "availableCopies", bookRepository.sumAvailableCopies(),
+                "activeMembers", memberRepository.countByStatus(Member.MembershipStatus.ACTIVE),
+                "activeBorrowings", borrowingRepository.countByStatus(BorrowingRecord.BorrowStatus.BORROWED),
+                "overdueBorrowings", borrowingRepository.countOverdueBorrowings()
+        ));
+        List<Book> recentBooks = bookRepository.findTop5ByOrderByCreatedAtDesc();
         model.addAttribute("recentBooks", recentBooks);
-
         return "index";
     }
 }

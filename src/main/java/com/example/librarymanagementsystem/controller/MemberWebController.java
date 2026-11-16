@@ -7,6 +7,8 @@ import com.example.librarymanagementsystem.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
@@ -25,8 +27,23 @@ public class MemberWebController {
     private final BorrowingService borrowingService;
 
     @GetMapping
-    public String listMembers(Model model) {
-        model.addAttribute("members", memberService.getAllMembers());
+    public String listMembers(@RequestParam(defaultValue = "") String search,
+                              @RequestParam(defaultValue = "") String status,
+                              @RequestParam(defaultValue = "0") int page,
+                              Model model) {
+        Member.MembershipStatus selectedStatus = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                selectedStatus = Member.MembershipStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                status = "";
+            }
+        }
+        var members = memberService.searchMembers(search, selectedStatus,
+                PageRequest.of(Math.max(page, 0), 10, Sort.by(Sort.Direction.DESC, "createdAt")));
+        model.addAttribute("members", members);
+        model.addAttribute("search", search);
+        model.addAttribute("selectedStatus", status);
         return "members/list";
     }
 
@@ -87,9 +104,14 @@ public class MemberWebController {
         return "redirect:/members";
     }
 
-    @GetMapping("/delete/{id}")
-    public String deleteMember(@PathVariable Long id) {
-        memberService.deleteMember(id);
+    @PostMapping("/delete/{id}")
+    public String deleteMember(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            memberService.deleteMember(id);
+            redirectAttributes.addFlashAttribute("success", "Member deleted successfully.");
+        } catch (RuntimeException ex) {
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        }
         return "redirect:/members";
     }
 }

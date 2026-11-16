@@ -57,6 +57,28 @@ public class BorrowingService {
         return borrowingRepository.save(record);
     }
 
+    public BorrowingRecord renewBook(Long borrowingId) {
+        BorrowingRecord record = borrowingRepository.findByIdForUpdate(borrowingId)
+                .orElseThrow(() -> new ResourceNotFoundException("Borrowing record not found"));
+
+        if (record.getStatus() != BorrowingRecord.BorrowStatus.BORROWED) {
+            throw new IllegalStateException("Only active loans can be renewed.");
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (record.getDueDate() == null || record.getDueDate().isBefore(now)) {
+            throw new IllegalStateException("Overdue loans cannot be renewed. Return the book and settle any applicable fine.");
+        }
+        int renewalCount = record.getRenewalCount() == null ? 0 : record.getRenewalCount();
+        if (renewalCount >= 1) {
+            throw new IllegalStateException("This loan has already been renewed.");
+        }
+
+        int loanPeriodDays = librarySettingsService.getSettings().getLoanPeriodDays();
+        record.setDueDate(record.getDueDate().plusDays(loanPeriodDays));
+        record.setRenewalCount(renewalCount + 1);
+        return borrowingRepository.save(record);
+    }
+
     public BorrowingRecord returnBook(Long borrowingId) {
         BorrowingRecord record = borrowingRepository.findByIdForUpdate(borrowingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Borrowing record not found"));

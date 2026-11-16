@@ -27,6 +27,12 @@ public class BorrowingController {
         return new ResponseEntity<>(borrowingService.borrowBook(bookId, memberId), HttpStatus.CREATED);
     }
 
+    @PostMapping("/{borrowingId}/renew")
+    @Operation(summary = "Renew an active book loan once")
+    public ResponseEntity<BorrowingRecord> renewBook(@PathVariable Long borrowingId) {
+        return ResponseEntity.ok(borrowingService.renewBook(borrowingId));
+    }
+
     @PostMapping("/return/{borrowingId}")
     @Operation(summary = "Return a book")
     public ResponseEntity<BorrowingRecord> returnBook(@PathVariable Long borrowingId) {

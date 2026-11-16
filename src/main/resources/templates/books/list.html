@@ -1,112 +1,56 @@
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Books - Library Management</title>
-
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
-
-    <!-- Your Custom CSS -->
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Books | Library Management</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+<link rel="stylesheet" th:href="@{/css/style.css}">
 </head>
 <body>
-<!-- Navigation -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-    <div class="container">
-        <a class="navbar-brand" th:href="@{/}">📚 Library Management</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/}">🏠 Home</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link active" th:href="@{/books}">📖 Books</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/members}">👥 Members</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" th:href="@{/borrowings}">📋 Borrowings</a>
-                </li>
-                <li class="nav-item"><a class="nav-link" th:href="@{/settings}">⚙️ Settings</a></li>
-            </ul>
-        </div>
-    </div>
-</nav>
-
-<!-- Main Content -->
-<div class="container mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="text-primary">📖 Books Management</h2>
-        <a th:href="@{/books/add}" class="btn btn-primary btn-lg">➕ Add New Book</a>
-    </div>
-
-    <!-- Books Table -->
-    <div class="card shadow">
-        <div class="card-header bg-dark text-white">
-            <h5 class="mb-0">All Books</h5>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive" th:if="${books != null && !books.empty}">
-                <table class="table table-hover">
-                    <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Author</th>
-                        <th>ISBN</th>
-                        <th>Category</th>
-                        <th>Available</th>
-                        <th>Location</th>
-                        <th>Actions</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr th:each="book : ${books}">
-                        <td><strong th:text="${book.title}">Book Title</strong></td>
-                        <td th:text="${book.author}">Author</td>
-                        <td th:text="${book.isbn}">ISBN</td>
-                        <td><span class="badge bg-info" th:text="${book.category}">Category</span></td>
-                        <td>
-                                    <span class="badge"
-                                          th:classappend="${book.availableCopies > 0} ? 'bg-success' : 'bg-danger'"
-                                          th:text="${book.availableCopies + '/' + book.totalCopies}">5/5</span>
-                        </td>
-                        <td th:text="${book.shelfLocation}">A1</td>
-                        <td>
-                            <a th:href="@{/books/edit/{id}(id=${book.id})}"
-                               class="btn btn-sm btn-warning me-1">✏️</a>
-                            <a th:href="@{/books/delete/{id}(id=${book.id})}"
-                               class="btn btn-sm btn-danger"
-                               onclick="return confirm('Delete this book?')">🗑️</a>
-                        </td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div th:if="${books == null || books.empty}" class="text-center py-5">
-                <span style="font-size: 4rem;">📚</span>
-                <h4 class="text-muted mt-3">No books found</h4>
-                <p class="text-muted">Start by adding a new book to the library.</p>
-                <a th:href="@{/books/add}" class="btn btn-primary btn-lg">➕ Add New Book</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Footer -->
-<footer class="footer mt-5 py-3 bg-light">
-    <div class="container text-center">
-        <span class="text-muted">© 2026 Robin's Library Management System</span>
-    </div>
-</footer>
-
-<!-- Bootstrap JS -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark"><div class="container">
+<a class="navbar-brand" th:href="@{/}">Library Management</a>
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav"><span class="navbar-toggler-icon"></span></button>
+<div class="collapse navbar-collapse" id="nav"><ul class="navbar-nav me-auto">
+<li class="nav-item"><a class="nav-link" th:href="@{/}">Dashboard</a></li>
+<li class="nav-item"><a class="nav-link active" th:href="@{/books}">Books</a></li>
+<li class="nav-item"><a class="nav-link" th:href="@{/members}">Members</a></li>
+<li class="nav-item"><a class="nav-link" th:href="@{/borrowings}">Borrowings</a></li>
+<li class="nav-item"><a class="nav-link" th:href="@{/settings}">Settings</a></li></ul>
+<form th:action="@{/logout}" method="post"><button class="btn btn-outline-light btn-sm" type="submit">Sign out</button></form></div>
+</div></nav>
+<main class="container py-4 py-lg-5">
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+<div><p class="text-uppercase small text-secondary fw-semibold mb-1">Catalogue</p><h1 class="h3 mb-1">Books</h1><p class="text-secondary mb-0">Manage titles, stock levels and shelf locations.</p></div>
+<a th:href="@{/books/add}" class="btn btn-primary">Add a book</a></div>
+<div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+<div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+<section class="card border-0 shadow-sm mb-4"><div class="card-body">
+<form method="get" th:action="@{/books}" class="row g-3 align-items-end">
+<div class="col-lg-5"><label for="search" class="form-label">Search catalogue</label><input id="search" name="search" class="form-control" placeholder="Title, author or ISBN" th:value="${search}"></div>
+<div class="col-lg-3"><label for="category" class="form-label">Category</label><select id="category" name="category" class="form-select"><option value="">All categories</option><option th:each="item : ${categories}" th:value="${item}" th:text="${item}" th:selected="${item == selectedCategory}"></option></select></div>
+<div class="col-lg-2"><div class="form-check mb-2"><input class="form-check-input" id="availableOnly" name="availableOnly" type="checkbox" value="true" th:checked="${availableOnly}"><label class="form-check-label" for="availableOnly">Available only</label></div></div>
+<div class="col-lg-2 d-flex gap-2"><button class="btn btn-dark flex-grow-1" type="submit">Filter</button><a th:href="@{/books}" class="btn btn-outline-secondary">Reset</a></div>
+</form></div></section>
+<section class="card border-0 shadow-sm"><div class="card-body">
+<div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h6 mb-0">Catalogue records</h2><span class="small text-secondary" th:text="${books.totalElements + ' books'}">0 books</span></div>
+<div class="table-responsive" th:if="${books.hasContent()}"><table class="table align-middle">
+<thead><tr><th>Title</th><th>Author</th><th>ISBN</th><th>Category</th><th>Availability</th><th>Shelf</th><th class="text-end">Actions</th></tr></thead>
+<tbody><tr th:each="book : ${books.content}">
+<td class="fw-semibold" th:text="${book.title}">Title</td><td th:text="${book.author}">Author</td><td th:text="${book.isbn}">ISBN</td>
+<td><span class="badge text-bg-light border" th:text="${book.category}">Category</span></td>
+<td><span th:text="${book.availableCopies + ' / ' + book.totalCopies}" th:classappend="${book.availableCopies > 0} ? 'text-success' : 'text-danger'" class="fw-semibold">2 / 4</span></td>
+<td th:text="${book.shelfLocation} ?: '—'">A1</td><td class="text-end text-nowrap">
+<a class="btn btn-sm btn-outline-secondary" th:href="@{/books/edit/{id}(id=${book.id})}">Edit</a>
+<form class="d-inline" method="post" th:action="@{/books/delete/{id}(id=${book.id})}" onsubmit="return confirm('Delete this book record?')"><button class="btn btn-sm btn-outline-danger" type="submit">Delete</button></form>
+</td></tr></tbody></table></div>
+<div th:if="${!books.hasContent()}" class="text-center py-5"><h3 class="h6">No books match these filters</h3><p class="text-secondary mb-0">Try another search or clear the filters.</p></div>
+<nav th:if="${books.totalPages > 1}" aria-label="Book pages" class="d-flex justify-content-between align-items-center mt-3">
+<span class="small text-secondary" th:text="${'Page ' + (books.number + 1) + ' of ' + books.totalPages}">Page 1</span>
+<ul class="pagination pagination-sm mb-0">
+<li class="page-item" th:classappend="${books.first} ? 'disabled'"><a class="page-link" th:href="@{/books(page=${books.number - 1},size=${pageSize},search=${search},category=${selectedCategory},availableOnly=${availableOnly})}">Previous</a></li>
+<li class="page-item" th:each="p : ${#numbers.sequence(0, books.totalPages - 1)}" th:classappend="${p == books.number} ? 'active'"><a class="page-link" th:href="@{/books(page=${p},size=${pageSize},search=${search},category=${selectedCategory},availableOnly=${availableOnly})}" th:text="${p + 1}">1</a></li>
+<li class="page-item" th:classappend="${books.last} ? 'disabled'"><a class="page-link" th:href="@{/books(page=${books.number + 1},size=${pageSize},search=${search},category=${selectedCategory},availableOnly=${availableOnly})}">Next</a></li>
+</ul></nav>
+</div></section></main>
 <script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
-</body>
-</html>
+</body></html>

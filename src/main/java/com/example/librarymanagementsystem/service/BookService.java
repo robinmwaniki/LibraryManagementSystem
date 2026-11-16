@@ -4,6 +4,7 @@ import com.example.librarymanagementsystem.dto.BookDTO;
 import com.example.librarymanagementsystem.exception.ResourceNotFoundException;
 import com.example.librarymanagementsystem.model.Book;
 import com.example.librarymanagementsystem.repository.BookRepository;
+import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,7 @@ import java.util.List;
 @Transactional
 public class BookService {
     private final BookRepository bookRepository;
+    private final BorrowingRepository borrowingRepository;
 
     public Book addBook(BookDTO bookDTO) {
         String isbn = normalizeIsbn(bookDTO.getIsbn());
@@ -62,8 +64,8 @@ public class BookService {
 
     public void deleteBook(Long id) {
         Book book = getBookById(id);
-        if (safe(book.getAvailableCopies()) != safe(book.getTotalCopies())) {
-            throw new IllegalStateException("This book has active borrowings and cannot be deleted.");
+        if (borrowingRepository.existsByBookId(id)) {
+            throw new IllegalStateException("This book has borrowing history and cannot be deleted. Keep the catalogue record for audit purposes.");
         }
         bookRepository.delete(book);
     }
@@ -91,6 +93,14 @@ public class BookService {
     @Transactional(readOnly = true)
     public List<String> getCategories() {
         return bookRepository.findDistinctCategories();
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<Book> searchBooks(String search, String category,
+            boolean availableOnly, org.springframework.data.domain.Pageable pageable) {
+        String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
+        String normalizedCategory = category == null || category.isBlank() ? null : category.trim();
+        return bookRepository.searchBooks(normalizedSearch, normalizedCategory, availableOnly, pageable);
     }
 
     private void mapDTOToBook(BookDTO dto, Book book) {
