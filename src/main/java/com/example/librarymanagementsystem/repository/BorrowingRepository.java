@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 @Repository
 public interface BorrowingRepository extends JpaRepository<BorrowingRecord, Long> {
@@ -38,4 +39,7 @@ public interface BorrowingRepository extends JpaRepository<BorrowingRecord, Long
 
     @Query("SELECT COALESCE(SUM(br.fine), 0) FROM BorrowingRecord br")
     Double sumRecordedFines();
+
+    @Query("SELECT br FROM BorrowingRecord br WHERE br.status = 'BORROWED' AND br.dueDate < CURRENT_TIMESTAMP AND (br.lastReminderSentAt IS NULL OR br.lastReminderSentAt < :cutoff)")
+    List<BorrowingRecord> findOverdueBorrowingsForReminder(@Param("cutoff") LocalDateTime cutoff);
 }
