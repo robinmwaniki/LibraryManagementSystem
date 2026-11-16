@@ -7,6 +7,7 @@ import com.example.librarymanagementsystem.dto.MemberDTO;
 import com.example.librarymanagementsystem.exception.ResourceNotFoundException;
 import com.example.librarymanagementsystem.model.Member;
 import com.example.librarymanagementsystem.repository.MemberRepository;
+import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.List;
 @Transactional
 public class MemberService {
     private final MemberRepository memberRepository;
+    private final BorrowingRepository borrowingRepository;
 
     public Member registerMember(MemberDTO memberDTO) {
         if (memberRepository.existsByEmail(memberDTO.getEmail())) {
@@ -45,10 +47,11 @@ public class MemberService {
     }
 
     public void deleteMember(Long id) {
-        if (!memberRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Member not found with id: " + id);
+        Member member = getMemberById(id);
+        if (borrowingRepository.existsByMemberId(id)) {
+            throw new IllegalStateException("This member has borrowing history and cannot be deleted. Change the membership status to INACTIVE instead.");
         }
-        memberRepository.deleteById(id);
+        memberRepository.delete(member);
     }
 
     public List<Member> searchMembersByName(String lastName) {
