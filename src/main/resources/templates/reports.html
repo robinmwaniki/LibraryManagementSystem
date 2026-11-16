@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reports | Library Management</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}"><link rel="stylesheet" th:href="@{/css/style.css}"></head>
+<body><nav class="navbar navbar-expand-lg navbar-dark bg-dark"><div class="container"><a class="navbar-brand" th:href="@{/}">Library Management</a><div class="ms-auto d-flex gap-3"><a class="nav-link" th:href="@{/}">Dashboard</a><a class="nav-link" th:href="@{/books}">Books</a><a class="nav-link" th:href="@{/borrowings}">Borrowings</a><form th:action="@{/logout}" method="post"><button class="btn btn-outline-light btn-sm">Sign out</button></form></div></div></nav>
+<main class="container py-4 py-lg-5"><div class="mb-4"><p class="small text-uppercase fw-semibold text-secondary mb-1">Insights</p><h1 class="h3 mb-1">Library reports</h1><p class="text-secondary mb-0">Catalogue, circulation and overdue-loan summary.</p></div>
+<div class="row g-3 mb-4">
+<div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="small text-secondary">Book titles</div><div class="h2 mt-2 mb-0" th:text="${totalTitles}">0</div></div></div></div>
+<div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="small text-secondary">Total copies</div><div class="h2 mt-2 mb-0" th:text="${totalCopies}">0</div><div class="small text-secondary" th:text="${availableCopies + ' available'}">0 available</div></div></div></div>
+<div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="small text-secondary">Active loans</div><div class="h2 mt-2 mb-0" th:text="${activeLoans}">0</div></div></div></div>
+<div class="col-6 col-lg-3"><div class="card"><div class="card-body"><div class="small text-secondary">Overdue loans</div><div class="h2 mt-2 mb-0 text-danger" th:text="${overdueCount}">0</div></div></div></div>
+</div>
+<div class="row g-3"><div class="col-lg-4"><div class="card h-100"><div class="card-body"><h2 class="h6">Membership</h2><div class="display-6 fw-semibold" th:text="${activeMembers}">0</div><p class="small text-secondary mb-0">Active members</p></div></div></div>
+<div class="col-lg-8"><div class="card h-100"><div class="card-body"><div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h6 mb-0">Overdue loans</h2><span class="badge text-bg-danger" th:text="${overdueCount + ' overdue'}">0 overdue</span></div>
+<div class="table-responsive" th:if="${!#lists.isEmpty(overdueLoans)}"><table class="table align-middle"><thead><tr><th>Book</th><th>Member</th><th>Due date</th></tr></thead><tbody><tr th:each="loan : ${overdueLoans}"><td class="fw-semibold" th:text="${loan.book.title}">Book</td><td th:text="${loan.member.firstName + ' ' + loan.member.lastName}">Member</td><td class="text-danger" th:text="${#temporals.format(loan.dueDate, 'dd MMM yyyy')}">Date</td></tr></tbody></table></div>
+<div th:if="${#lists.isEmpty(overdueLoans)}" class="text-secondary py-4 text-center">There are no overdue loans.</div>
+</div></div></div></div>
+</main><script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script></body></html>
