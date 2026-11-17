@@ -104,3 +104,38 @@ databaseChangeLog:
             indexName: idx_borrowings_book
             columns:
               - column: { name: book_id }
+
+  - changeSet:
+      id: 005-create-book-reservations
+      author: robinmwaniki
+      changes:
+        - createTable:
+            tableName: book_reservations
+            columns:
+              - column: { name: id, type: BIGINT, autoIncrement: true, constraints: { primaryKey: true, primaryKeyName: pk_book_reservations, nullable: false } }
+              - column: { name: book_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_reservations_book, references: books(id) } }
+              - column: { name: member_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_reservations_member, references: members(id) } }
+              - column: { name: status, type: VARCHAR(20), defaultValue: WAITING, constraints: { nullable: false } }
+              - column: { name: created_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+              - column: { name: ready_at, type: TIMESTAMP }
+              - column: { name: expires_at, type: TIMESTAMP }
+        - createIndex:
+            tableName: book_reservations
+            indexName: idx_reservations_book_status_queue
+            columns:
+              - column: { name: book_id }
+              - column: { name: status }
+              - column: { name: created_at }
+              - column: { name: id }
+        - createIndex:
+            tableName: book_reservations
+            indexName: idx_reservations_member_status
+            columns:
+              - column: { name: member_id }
+              - column: { name: status }
+        - createIndex:
+            tableName: book_reservations
+            indexName: idx_reservations_expiry
+            columns:
+              - column: { name: status }
+              - column: { name: expires_at }
