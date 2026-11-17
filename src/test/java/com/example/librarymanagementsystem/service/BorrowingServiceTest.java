@@ -56,7 +56,7 @@ class BorrowingServiceTest {
     }
 
     @Test
-    void borrowBookRejectsInactiveMembersWithoutCreatingALoan() {
+    void borrowBookRejectsNonActiveMembersWithoutCreatingALoan() {
         Book book = new Book();
         book.setId(1L);
         book.setAvailableCopies(1);
