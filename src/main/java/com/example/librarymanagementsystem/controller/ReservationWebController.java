@@ -19,6 +19,17 @@ public class ReservationWebController {
         return "reservations/list";
     }
 
+    @PostMapping("/{id}/collect")
+    public String collectReservation(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            reservationService.collectReservation(id);
+            redirectAttributes.addFlashAttribute("success", "Reservation collected and loan created.");
+        } catch (RuntimeException ex) {
+            redirectAttributes.addFlashAttribute("error", ex.getMessage());
+        }
+        return "redirect:/reservations";
+    }
+
     @PostMapping("/{id}/cancel")
     public String cancelReservation(@PathVariable Long id, @RequestParam Long memberId,
                                     RedirectAttributes redirectAttributes) {
