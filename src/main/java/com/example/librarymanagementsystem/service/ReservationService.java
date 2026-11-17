@@ -150,6 +150,7 @@ public class ReservationService {
      */
     public void allocateWaitingReservations(Long bookId) {
         Book book = lockBook(bookId);
+        boolean inventoryChanged = false;
         while (safe(book.getAvailableCopies()) > 0) {
             List<BookReservation> waiting = reservationRepository
                     .findByBookIdAndStatusOrderByCreatedAtAscIdAsc(bookId, ReservationStatus.WAITING);
@@ -160,8 +161,11 @@ public class ReservationService {
             next.setExpiresAt(LocalDateTime.now().plusDays(validatedExpiryDays()));
             book.setAvailableCopies(book.getAvailableCopies() - 1);
             reservationRepository.save(next);
+            inventoryChanged = true;
         }
-        bookRepository.save(book);
+        if (inventoryChanged) {
+            bookRepository.save(book);
+        }
     }
 
     /**
