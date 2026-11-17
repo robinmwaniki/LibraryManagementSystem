@@ -24,6 +24,12 @@ public class ReservationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(reservationService.reserveBook(bookId, memberId));
     }
 
+    @PostMapping("/{reservationId}/collect")
+    @Operation(summary = "Record collection of a ready reservation and create its loan")
+    public ResponseEntity<BookReservation> collect(@PathVariable Long reservationId) {
+        return ResponseEntity.ok(reservationService.collectReservation(reservationId));
+    }
+
     @DeleteMapping("/{reservationId}")
     @Operation(summary = "Cancel a member reservation")
     public ResponseEntity<BookReservation> cancel(@PathVariable Long reservationId,
