@@ -37,7 +37,7 @@ The test profile uses an isolated H2 database for Spring application-context and
 
 ## Pagination regression coverage
 
-Book and member list tests verify that service queries pass a `Pageable` to Spring Data repositories, preserve active search and filter criteria, report total elements and pages, and return safe empty results for out-of-range page indexes. The REST list endpoints and HTML list pages use database-backed pagination; list page sizes are bounded to prevent unbounded reads.
+Book and member service tests verify that queries pass a `Pageable` to Spring Data repositories, preserve active search and filter criteria, report total elements and pages, and return safe empty results for out-of-range page indexes. `PaginationControllerTest` verifies that REST endpoints clamp negative page indexes and cap page sizes at 100. The REST list endpoints and HTML list pages use database-backed pagination; list page sizes are bounded to prevent unbounded reads.
 
 ## Docker Compose smoke test
 
