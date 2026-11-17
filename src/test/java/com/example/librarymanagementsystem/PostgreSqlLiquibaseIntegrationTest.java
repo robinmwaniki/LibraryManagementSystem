@@ -8,8 +8,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import com.example.librarymanagementsystem.model.Book;
+import com.example.librarymanagementsystem.model.BookReservation;
 import com.example.librarymanagementsystem.model.Member;
 import com.example.librarymanagementsystem.repository.BookRepository;
+import com.example.librarymanagementsystem.repository.BookReservationRepository;
 import com.example.librarymanagementsystem.repository.MemberRepository;
 import java.util.List;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -56,6 +58,9 @@ class PostgreSqlLiquibaseIntegrationTest {
 
     @Autowired
     private MemberRepository memberRepository;
+
+    @Autowired
+    private BookReservationRepository reservationRepository;
 
     @Test
     void liquibaseCreatesAllApplicationTablesAndHibernateValidatesMappings() {
@@ -125,6 +130,58 @@ class PostgreSqlLiquibaseIntegrationTest {
         assertThat(firstMemberPage.getTotalElements()).isEqualTo(3);
         assertThat(firstMemberPage.getTotalPages()).isEqualTo(2);
         assertThat(secondMemberPage.getContent()).hasSize(1);
+    }
+
+
+    @Test
+    void reservationQueuePersistsFifoOrderAndExpiredReadyReservations() {
+        Book book = new Book();
+        book.setTitle("Reservation Queue Integration");
+        book.setAuthor("Queue Author");
+        book.setIsbn("9780000099901");
+        book.setTotalCopies(2);
+        book.setAvailableCopies(0);
+        book = bookRepository.save(book);
+
+        Member firstMember = new Member();
+        firstMember.setFirstName("Queue");
+        firstMember.setLastName("First");
+        firstMember.setEmail("queue.first@example.test");
+        firstMember.setPhone("+254700009991");
+        firstMember = memberRepository.save(firstMember);
+
+        Member secondMember = new Member();
+        secondMember.setFirstName("Queue");
+        secondMember.setLastName("Second");
+        secondMember.setEmail("queue.second@example.test");
+        secondMember.setPhone("+254700009992");
+        secondMember = memberRepository.save(secondMember);
+
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        BookReservation first = new BookReservation();
+        first.setBook(book);
+        first.setMember(firstMember);
+        first.setStatus(BookReservation.ReservationStatus.WAITING);
+        first.setCreatedAt(now.minusMinutes(2));
+        reservationRepository.save(first);
+
+        BookReservation second = new BookReservation();
+        second.setBook(book);
+        second.setMember(secondMember);
+        second.setStatus(BookReservation.ReservationStatus.READY);
+        second.setCreatedAt(now.minusMinutes(1));
+        second.setReadyAt(now.minusDays(4));
+        second.setExpiresAt(now.minusDays(1));
+        reservationRepository.save(second);
+
+        List<BookReservation> queue = reservationRepository
+                .findByBookIdOrderByCreatedAtAscIdAsc(book.getId());
+        assertThat(queue).extracting(r -> r.getMember().getId())
+                .containsExactly(firstMember.getId(), secondMember.getId());
+
+        List<BookReservation> expired = reservationRepository.findExpiredReadyReservationsForBook(
+                book.getId(), BookReservation.ReservationStatus.READY, now);
+        assertThat(expired).extracting(BookReservation::getId).containsExactly(second.getId());
     }
 
     private boolean tableExists(String tableName) {
