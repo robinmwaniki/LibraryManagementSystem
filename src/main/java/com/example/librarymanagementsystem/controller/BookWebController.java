@@ -14,28 +14,48 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.Map;
+
 @Controller
 @RequestMapping("/books")
 @RequiredArgsConstructor
 public class BookWebController {
+    private static final Map<String, String> SORT_FIELDS = Map.of(
+            "title", "title",
+            "author", "author",
+            "publicationDate", "publicationYear",
+            "recentlyAdded", "createdAt"
+    );
+
     private final BookService bookService;
 
     @GetMapping
     public String listBooks(@RequestParam(defaultValue = "") String search,
                             @RequestParam(defaultValue = "") String category,
                             @RequestParam(defaultValue = "false") boolean availableOnly,
+                            @RequestParam(defaultValue = "recentlyAdded") String sort,
+                            @RequestParam(defaultValue = "asc") String direction,
                             @RequestParam(defaultValue = "0") int page,
                             @RequestParam(defaultValue = "10") int size,
                             Model model) {
+        String sortField = SORT_FIELDS.getOrDefault(sort, "createdAt");
+        Sort.Direction sortDirection = "desc".equalsIgnoreCase(direction)
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        if ("recentlyAdded".equals(sort)) {
+            sortDirection = Sort.Direction.DESC;
+        }
+
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 5), 100);
         Page<Book> books = bookService.searchBooks(search, category, availableOnly,
-                PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(safePage, safeSize, Sort.by(sortDirection, sortField)));
         model.addAttribute("books", books);
         model.addAttribute("categories", bookService.getCategories());
         model.addAttribute("search", search);
         model.addAttribute("selectedCategory", category);
         model.addAttribute("availableOnly", availableOnly);
+        model.addAttribute("sort", sort);
+        model.addAttribute("direction", sortDirection.name().toLowerCase());
         model.addAttribute("pageSize", safeSize);
         return "books/list";
     }
