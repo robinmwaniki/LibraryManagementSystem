@@ -75,7 +75,6 @@ class PostgreSqlLiquibaseIntegrationTest {
         assertThat(defaultSettings).isEqualTo(1);
     }
 
-
     @Test
     void bookAndMemberSearchQueriesApplyPaginationInsidePostgreSql() {
         List<Book> books = java.util.stream.IntStream.rangeClosed(1, 3).mapToObj(index -> {
@@ -83,6 +82,7 @@ class PostgreSqlLiquibaseIntegrationTest {
             book.setTitle("Pagination Catalogue " + index);
             book.setAuthor("Pagination Author");
             book.setIsbn("97800000010" + index);
+            book.setPublisher("Northwind Press");
             book.setCategory("Testing");
             book.setTotalCopies(2);
             book.setAvailableCopies(2);
@@ -109,6 +109,12 @@ class PostgreSqlLiquibaseIntegrationTest {
         assertThat(firstBookPage.getTotalElements()).isEqualTo(3);
         assertThat(firstBookPage.getTotalPages()).isEqualTo(2);
         assertThat(secondBookPage.getContent()).hasSize(1);
+
+        // Publisher is a searchable field even when the search term differs from title/author.
+        Page<Book> publisherMatches = bookRepository.searchBooks("NORTHWIND", null, false,
+                PageRequest.of(0, 10, Sort.by("title")));
+        assertThat(publisherMatches.getContent()).hasSize(3);
+        assertThat(publisherMatches.getContent()).allMatch(book -> "Northwind Press".equals(book.getPublisher()));
 
         Page<Member> firstMemberPage = memberRepository.searchMembers("Pagination",
                 Member.MembershipStatus.ACTIVE, PageRequest.of(0, 2, Sort.by("id")));
