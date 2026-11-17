@@ -26,13 +26,14 @@
 <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
 <section class="card border-0 shadow-sm mb-4"><div class="card-body">
 <form method="get" th:action="@{/books}" class="row g-3 align-items-end">
-<div class="col-lg-5"><label for="search" class="form-label">Search catalogue</label><input id="search" name="search" class="form-control" placeholder="Title, author or ISBN" th:value="${search}"></div>
+<div class="col-lg-4"><label for="search" class="form-label">Search catalogue</label><input id="search" name="search" class="form-control" placeholder="Title, author or ISBN" th:value="${search}"></div>
 <div class="col-lg-3"><label for="category" class="form-label">Category</label><select id="category" name="category" class="form-select"><option value="">All categories</option><option th:each="item : ${categories}" th:value="${item}" th:text="${item}" th:selected="${item == selectedCategory}"></option></select></div>
 <div class="col-lg-2"><div class="form-check mb-2"><input class="form-check-input" id="availableOnly" name="availableOnly" type="checkbox" value="true" th:checked="${availableOnly}"><label class="form-check-label" for="availableOnly">Available only</label></div></div>
+<div class="col-lg-1"><label for="size" class="form-label">Rows</label><select id="size" name="size" class="form-select"><option value="5" th:selected="${pageSize == 5}">5</option><option value="10" th:selected="${pageSize == 10}">10</option><option value="20" th:selected="${pageSize == 20}">20</option><option value="50" th:selected="${pageSize == 50}">50</option><option value="100" th:selected="${pageSize == 100}">100</option></select></div>
 <div class="col-lg-2 d-flex gap-2"><button class="btn btn-dark flex-grow-1" type="submit">Filter</button><a th:href="@{/books}" class="btn btn-outline-secondary">Reset</a></div>
 </form></div></section>
 <section class="card border-0 shadow-sm"><div class="card-body">
-<div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h6 mb-0">Catalogue records</h2><span class="small text-secondary" th:text="${books.totalElements + ' books'}">0 books</span></div>
+<div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h6 mb-0">Catalogue records</h2><span class="small text-secondary" th:text="${books.totalElements + ' books · Page ' + (books.totalPages == 0 ? 0 : books.number + 1) + ' of ' + books.totalPages}">0 books</span></div>
 <div class="table-responsive" th:if="${books.hasContent()}"><table class="table align-middle">
 <thead><tr><th>Title</th><th>Author</th><th>ISBN</th><th>Category</th><th>Availability</th><th>Shelf</th><th class="text-end">Actions</th></tr></thead>
 <tbody><tr th:each="book : ${books.content}">
@@ -45,7 +46,7 @@
 </td></tr></tbody></table></div>
 <div th:if="${!books.hasContent()}" class="text-center py-5"><h3 class="h6">No books match these filters</h3><p class="text-secondary mb-0">Try another search or clear the filters.</p></div>
 <nav th:if="${books.totalPages > 1}" aria-label="Book pages" class="d-flex justify-content-between align-items-center mt-3">
-<span class="small text-secondary" th:text="${'Page ' + (books.number + 1) + ' of ' + books.totalPages}">Page 1</span>
+<span class="small text-secondary" th:text="${'Showing ' + (books.numberOfElements == 0 ? 0 : books.number * books.size + 1) + '–' + (books.number * books.size + books.numberOfElements) + ' of ' + books.totalElements + ' · Page ' + (books.number + 1) + ' of ' + books.totalPages}">Page 1</span>
 <ul class="pagination pagination-sm mb-0">
 <li class="page-item" th:classappend="${books.first} ? 'disabled'"><a class="page-link" th:href="@{/books(page=${books.number - 1},size=${pageSize},search=${search},category=${selectedCategory},availableOnly=${availableOnly})}">Previous</a></li>
 <li class="page-item" th:each="p : ${#numbers.sequence(0, books.totalPages - 1)}" th:classappend="${p == books.number} ? 'active'"><a class="page-link" th:href="@{/books(page=${p},size=${pageSize},search=${search},category=${selectedCategory},availableOnly=${availableOnly})}" th:text="${p + 1}">1</a></li>

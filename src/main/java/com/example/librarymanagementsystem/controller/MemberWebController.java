@@ -30,6 +30,7 @@ public class MemberWebController {
     public String listMembers(@RequestParam(defaultValue = "") String search,
                               @RequestParam(defaultValue = "") String status,
                               @RequestParam(defaultValue = "0") int page,
+                              @RequestParam(defaultValue = "10") int size,
                               Model model) {
         Member.MembershipStatus selectedStatus = null;
         if (status != null && !status.isBlank()) {
@@ -39,9 +40,13 @@ public class MemberWebController {
                 status = "";
             }
         }
+        // Sanitize direct URL input so page indexes and page sizes remain safe.
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 5), 100);
         var members = memberService.searchMembers(search, selectedStatus,
-                PageRequest.of(Math.max(page, 0), 10, Sort.by(Sort.Direction.DESC, "createdAt")));
+                PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt")));
         model.addAttribute("members", members);
+        model.addAttribute("pageSize", safeSize);
         model.addAttribute("search", search);
         model.addAttribute("selectedStatus", status);
         return "members/list";

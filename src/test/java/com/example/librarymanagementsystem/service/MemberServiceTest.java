@@ -13,6 +13,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Verifies member registration and deletion rules without requiring a database.
@@ -77,6 +82,40 @@ class MemberServiceTest {
         verify(memberRepository).delete(member);
     }
 
+
+    @Test
+    void searchMembersUsesDatabasePaginationAndPreservesSearchFilters() {
+        Member member = new Member();
+        member.setId(31L);
+        member.setFirstName("Robin");
+        Pageable pageable = PageRequest.of(1, 5);
+        Page<Member> repositoryPage = new PageImpl<>(List.of(member), pageable, 11);
+        when(memberRepository.searchMembers("robin", Member.MembershipStatus.ACTIVE, pageable))
+                .thenReturn(repositoryPage);
+
+        Page<Member> result = memberService.searchMembers(" robin ",
+                Member.MembershipStatus.ACTIVE, pageable);
+
+        assertEquals(1, result.getNumber());
+        assertEquals(5, result.getSize());
+        assertEquals(11, result.getTotalElements());
+        assertEquals(3, result.getTotalPages());
+        assertEquals(List.of(member), result.getContent());
+        verify(memberRepository).searchMembers("robin", Member.MembershipStatus.ACTIVE, pageable);
+    }
+
+    @Test
+    void searchMembersReturnsAnEmptyPageWhenRequestedPageIsOutOfRange() {
+        Pageable pageable = PageRequest.of(4, 5);
+        Page<Member> emptyPage = new PageImpl<>(List.of(), pageable, 11);
+        when(memberRepository.searchMembers(isNull(), isNull(), eq(pageable))).thenReturn(emptyPage);
+
+        Page<Member> result = memberService.searchMembers("", null, pageable);
+
+        assertTrue(result.isEmpty());
+        assertEquals(11, result.getTotalElements());
+        assertEquals(3, result.getTotalPages());
+    }
     private MemberDTO validMemberRequest() {
         MemberDTO request = new MemberDTO();
         request.setFirstName("Robin");

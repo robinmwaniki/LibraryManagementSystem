@@ -11,6 +11,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Optional;
+import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -70,5 +75,37 @@ class BookServiceTest {
 
         assertThrows(IllegalArgumentException.class, () -> bookService.updateBook(7L, dto));
         verify(bookRepository, never()).save(any(Book.class));
+    }
+
+    @Test
+    void searchBooksUsesDatabasePaginationAndReportsTotalResults() {
+        Book book = new Book();
+        book.setId(21L);
+        book.setTitle("Spring in Action");
+        Pageable pageable = PageRequest.of(1, 5);
+        Page<Book> repositoryPage = new PageImpl<>(List.of(book), pageable, 11);
+        when(bookRepository.searchBooks("spring", "Technology", true, pageable)).thenReturn(repositoryPage);
+
+        Page<Book> result = bookService.searchBooks(" spring ", " Technology ", true, pageable);
+
+        assertEquals(1, result.getNumber());
+        assertEquals(5, result.getSize());
+        assertEquals(11, result.getTotalElements());
+        assertEquals(3, result.getTotalPages());
+        assertEquals(List.of(book), result.getContent());
+        verify(bookRepository).searchBooks("spring", "Technology", true, pageable);
+    }
+
+    @Test
+    void searchBooksReturnsAnEmptyPageWhenRequestedPageIsOutOfRange() {
+        Pageable pageable = PageRequest.of(4, 5);
+        Page<Book> emptyPage = new PageImpl<>(List.of(), pageable, 11);
+        when(bookRepository.searchBooks(isNull(), isNull(), eq(false), eq(pageable))).thenReturn(emptyPage);
+
+        Page<Book> result = bookService.searchBooks("", "", false, pageable);
+
+        assertTrue(result.isEmpty());
+        assertEquals(11, result.getTotalElements());
+        assertEquals(3, result.getTotalPages());
     }
 }
