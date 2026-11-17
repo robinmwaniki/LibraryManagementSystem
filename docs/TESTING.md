@@ -32,6 +32,7 @@ The test profile uses an isolated H2 database for Spring application-context and
 | `MemberServiceTest` | Member registration, duplicate email protection, and deletion safeguards |
 | `BorrowingServiceTest` | Borrowing eligibility, stock changes, returns, overdue fine caps, and renewals |
 | `SecurityIntegrationTest` | Anonymous access restrictions, administrator authentication, and public health endpoint |
+| `PaginationControllerTest` | REST pagination bounds for book and member endpoints |
 | `PostgreSqlLiquibaseIntegrationTest` | PostgreSQL 18 schema creation, Liquibase changesets, and Hibernate mapping validation |
 | `LibraryManagementSystemApplicationTests` | Spring application context startup |
 
