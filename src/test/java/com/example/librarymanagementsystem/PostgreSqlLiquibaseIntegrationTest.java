@@ -69,11 +69,13 @@ class PostgreSqlLiquibaseIntegrationTest {
         assertThat(tableExists("library_settings")).isTrue();
         assertThat(tableExists("borrowing_records")).isTrue();
         assertThat(tableExists("book_reservations")).isTrue();
+        assertThat(tableExists("fine_payments")).isTrue();
+        assertThat(tableExists("fine_adjustments")).isTrue();
         assertThat(tableExists("databasechangelog")).isTrue();
 
         Integer changesets = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM databasechangelog", Integer.class);
-        assertThat(changesets).isEqualTo(5);
+        assertThat(changesets).isEqualTo(6);
 
         Integer defaultSettings = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM library_settings WHERE id = 1 AND loan_period_days = 14",
