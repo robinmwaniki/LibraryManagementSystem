@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Reservations | Library Management</title>
+    <link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}">📚 Library Management</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" th:href="@{/books}">Books</a>
+            <a class="nav-link" th:href="@{/members}">Members</a>
+            <a class="nav-link" th:href="@{/borrowings}">Borrowings</a>
+            <a class="nav-link active" th:href="@{/reservations}">Reservations</a>
+            <a class="nav-link" th:href="@{/reports}">Reports</a>
+            <a class="nav-link" th:href="@{/settings}">Settings</a>
+        </div>
+    </div>
+</nav>
+<main class="container py-4">
+    <div class="mb-4">
+        <p class="text-uppercase small text-secondary fw-semibold mb-1">Circulation</p>
+        <h1 class="h3 mb-1">Book reservations</h1>
+        <p class="text-secondary mb-0">Review the waiting list, ready-for-collection copies and reservation expiry dates.</p>
+    </div>
+    <div th:if="${success}" class="alert alert-success" th:text="${success}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+    <section class="card border-0 shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive" th:if="${!reservations.isEmpty()}">
+                <table class="table align-middle">
+                    <thead><tr><th>Book</th><th>Member</th><th>Requested</th><th>Status</th><th>Ready since</th><th>Expires</th><th>Action</th></tr></thead>
+                    <tbody>
+                    <tr th:each="reservation : ${reservations}">
+                        <td class="fw-semibold" th:text="${reservation.book.title}">Book</td>
+                        <td><span th:text="${reservation.member.firstName + ' ' + reservation.member.lastName}">Member</span><small class="d-block text-secondary" th:text="${reservation.member.email}">email</small></td>
+                        <td th:text="${#temporals.format(reservation.createdAt, 'dd MMM yyyy HH:mm')}">Date</td>
+                        <td><span class="badge" th:classappend="${reservation.status.name() == 'READY'} ? 'text-bg-success' : (${reservation.status.name() == 'WAITING'} ? 'text-bg-warning' : 'text-bg-secondary')" th:text="${reservation.status}">WAITING</span></td>
+                        <td th:text="${reservation.readyAt == null ? '—' : #temporals.format(reservation.readyAt, 'dd MMM yyyy HH:mm')}">—</td>
+                        <td th:text="${reservation.expiresAt == null ? '—' : #temporals.format(reservation.expiresAt, 'dd MMM yyyy HH:mm')}">—</td>
+                        <td>
+                            <form th:if="${reservation.status.name() == 'WAITING' || reservation.status.name() == 'READY'}" method="post" th:action="@{/reservations/{id}/cancel(id=${reservation.id})}">
+                                <input type="hidden" name="memberId" th:value="${reservation.member.id}">
+                                <button class="btn btn-sm btn-outline-danger" type="submit">Cancel</button>
+                            </form>
+                            <span th:unless="${reservation.status.name() == 'WAITING' || reservation.status.name() == 'READY'}" class="text-secondary small">—</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div th:if="${reservations.isEmpty()}" class="text-center py-5">
+                <h2 class="h6">No reservations yet</h2>
+                <p class="text-secondary mb-0">Reservations will appear here when a member requests an unavailable title.</p>
+            </div>
+        </div>
+    </section>
+</main>
+<script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script>
+</body>
+</html>
