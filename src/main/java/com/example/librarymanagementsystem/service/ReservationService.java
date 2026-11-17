@@ -36,20 +36,24 @@ public class ReservationService {
     private int expiryDays;
 
     public BookReservation reserveBook(Long bookId, Long memberId) {
-        // Serialize operations for a title by locking its inventory row first.
+        // Expire old holds before taking a title lock. This prevents a transaction
+        // holding book A from trying to lock book B while another transaction does the reverse.
+        expireReservations();
+
+        // Serializes duplicate checks and queue allocation for this title.
         Book book = lockBook(bookId);
+        expireReservationsForBook(bookId, LocalDateTime.now());
+
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member not found"));
         if (member.getStatus() != Member.MembershipStatus.ACTIVE) {
             throw new IllegalStateException("Only active members can reserve books.");
         }
-
-        expireReservations();
         if (reservationRepository.existsByBookIdAndMemberIdAndStatusIn(bookId, memberId, ACTIVE_STATUSES)) {
             throw new IllegalStateException("This member already has an active reservation for the book.");
         }
 
-        // Give any older waiting members first claim if inventory was replenished outside a return.
+        // Older waiting members always receive available stock before a new request.
         allocateWaitingReservations(bookId);
         BookReservation reservation = new BookReservation();
         reservation.setBook(book);
@@ -68,10 +72,12 @@ public class ReservationService {
     }
 
     public BookReservation cancelReservation(Long reservationId, Long memberId) {
-        // Keep the same lock order as returns and queue allocation: book first, reservation second.
         BookReservation snapshot = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));
-        lockBook(snapshot.getBook().getId());
+        Long bookId = snapshot.getBook().getId();
+        lockBook(bookId);
+        expireReservationsForBook(bookId, LocalDateTime.now());
+
         BookReservation reservation = reservationRepository.findByIdForUpdate(reservationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));
         if (!reservation.getMember().getId().equals(memberId)) {
@@ -85,7 +91,7 @@ public class ReservationService {
         reservation.setStatus(ReservationStatus.CANCELLED);
         reservationRepository.save(reservation);
         if (wasReady) {
-            releaseReservedCopy(reservation.getBook().getId());
+            releaseReservedCopy(bookId);
         }
         return reservation;
     }
@@ -93,7 +99,12 @@ public class ReservationService {
     public BookReservation collectReservation(Long reservationId) {
         BookReservation snapshot = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));
-        lockBook(snapshot.getBook().getId());
+        Long bookId = snapshot.getBook().getId();
+        lockBook(bookId);
+        // A collection request is also an expiry boundary: do not leave an expired
+        // hold blocking the next member merely because the hourly job has not run yet.
+        expireReservationsForBook(bookId, LocalDateTime.now());
+
         BookReservation reservation = reservationRepository.findByIdForUpdate(reservationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));
         if (reservation.getStatus() != ReservationStatus.READY) {
@@ -115,17 +126,16 @@ public class ReservationService {
             throw new IllegalStateException("Member has reached the maximum borrowing limit.");
         }
 
-        LocalDateTime borrowedAt = now;
         int loanPeriodDays = librarySettingsService.getSettings().getLoanPeriodDays();
         BorrowingRecord loan = new BorrowingRecord();
         loan.setBook(reservation.getBook());
         loan.setMember(member);
-        loan.setBorrowDate(borrowedAt);
-        loan.setDueDate(borrowedAt.plusDays(loanPeriodDays));
+        loan.setBorrowDate(now);
+        loan.setDueDate(now.plusDays(loanPeriodDays));
         loan.setStatus(BorrowingRecord.BorrowStatus.BORROWED);
         borrowingRepository.save(loan);
 
-        // The copy was already removed from available stock when the reservation became READY.
+        // The inventory was decremented when the reservation became READY.
         reservation.setStatus(ReservationStatus.COLLECTED);
         return reservationRepository.save(reservation);
     }
@@ -146,7 +156,8 @@ public class ReservationService {
     }
 
     /**
-     * Called after returns and cancellations. FIFO ordering is deterministic by request time then ID.
+     * Reserves available copies for the oldest waiting members in deterministic FIFO order.
+     * The caller must serialize this operation by locking the corresponding book row.
      */
     public void allocateWaitingReservations(Long bookId) {
         Book book = lockBook(bookId);
@@ -169,19 +180,32 @@ public class ReservationService {
     }
 
     /**
-     * Hourly expiry releases unclaimed copies and offers them to the next members in FIFO order.
+     * Scheduled expiry releases each expired hold, then promotes the next FIFO member.
+     * The book row is always locked before a reservation row to keep lock order consistent.
      */
     @Scheduled(cron = "${library.reservations.expiry-check-cron:0 0 * * * *}")
     public void expireReservations() {
         LocalDateTime now = LocalDateTime.now();
         List<BookReservation> expiredCandidates = reservationRepository
                 .findExpiredReadyReservations(ReservationStatus.READY, now);
-        for (BookReservation candidate : expiredCandidates) {
-            Long bookId = candidate.getBook().getId();
-            Book book = lockBook(bookId);
+        expiredCandidates.stream().map(r -> r.getBook().getId()).distinct()
+                .forEach(bookId -> {
+                    lockBook(bookId);
+                    expireReservationsForBook(bookId, now);
+                    allocateWaitingReservations(bookId);
+                });
+    }
+
+    private void expireReservationsForBook(Long bookId, LocalDateTime now) {
+        List<BookReservation> expired = reservationRepository
+                .findExpiredReadyReservationsForBook(bookId, ReservationStatus.READY, now);
+        if (expired.isEmpty()) return;
+
+        Book book = lockBook(bookId);
+        for (BookReservation candidate : expired) {
             BookReservation reservation = reservationRepository.findByIdForUpdate(candidate.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));
-            // Re-check after obtaining the row lock because a collection/cancellation may have won the race.
+            // Re-check after obtaining the row lock because collection/cancellation may have won the race.
             if (reservation.getStatus() != ReservationStatus.READY
                     || reservation.getExpiresAt() == null
                     || reservation.getExpiresAt().isAfter(now)) {
@@ -190,10 +214,9 @@ public class ReservationService {
             reservation.setStatus(ReservationStatus.EXPIRED);
             reservationRepository.save(reservation);
             book.setAvailableCopies(safe(book.getAvailableCopies()) + 1);
-            bookRepository.save(book);
         }
-        expiredCandidates.stream().map(r -> r.getBook().getId()).distinct()
-                .forEach(this::allocateWaitingReservations);
+        bookRepository.save(book);
+        allocateWaitingReservations(bookId);
     }
 
     private void releaseReservedCopy(Long bookId) {
