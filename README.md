@@ -39,6 +39,29 @@ docker compose down -v
 docker compose up --build
 ```
 
+## Deploy to Render (development/staging)
+
+Render runs the application as a Docker Web Service and the database as a separate Render PostgreSQL instance. Do not deploy the local `docker-compose.yml` stack as a single Render service.
+
+1. Create a PostgreSQL database in Render. Keep it in the same region as the web service so the application can use the database's **internal host**.
+2. Create a Web Service connected to this repository and select the `develop` branch.
+3. Set the runtime to **Docker** and use the repository-root `Dockerfile`.
+4. Set the health check path to `/actuator/health`.
+5. Add these environment variables to the web service:
+   - `DB_URL`: `jdbc:postgresql://<INTERNAL_HOST>:5432/<DATABASE_NAME>?sslmode=require`
+   - `DB_USERNAME`: the Render database username
+   - `DB_PASSWORD`: the Render database password
+   - `LIBRARY_ADMIN_USERNAME`: the initial administrator username
+   - `LIBRARY_ADMIN_PASSWORD`: a strong, unique administrator password
+   - `LIBRARY_NOTIFICATIONS_ENABLED`: `false` until SMTP is configured and tested
+6. Deploy and inspect the service logs. Liquibase should apply the initial changesets before the application becomes ready.
+
+Render supplies the `PORT` environment variable to web services. The application uses it automatically, while retaining `SERVER_PORT`/8080 as the local and Docker Compose fallback. The Spring Boot server binds to all interfaces by default.
+
+Use the Render PostgreSQL **internal** host, not the public connection host, when the web service and database are in the same region. Keep database and administrator credentials in Render environment settings; never commit them to Git. Render web-service filesystems are ephemeral, so store persistent application data in a managed database or an appropriate persistent storage service rather than the container filesystem.
+
+For this staging deployment, use a separate Render database from any future production database. Verify login, catalogue and member management, borrowing/returns, Liquibase startup, health checks, and data persistence before planning the AWS deployment.
+
 ## Run locally without Docker
 
 Requirements: JDK 21, Maven, and PostgreSQL 18.

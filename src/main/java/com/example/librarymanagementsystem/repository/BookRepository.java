@@ -33,12 +33,18 @@ public interface BookRepository extends JpaRepository<Book, Long> {
     @Query("SELECT DISTINCT b.category FROM Book b WHERE b.category IS NOT NULL AND TRIM(b.category) <> '' ORDER BY b.category")
     List<String> findDistinctCategories();
 
+    /**
+     * Applies one partial, case-insensitive search term across the catalogue's
+     * identifying fields before filtering and paging in the database.
+     */
     @Query("""
         SELECT b FROM Book b
         WHERE (:term IS NULL OR :term = ''
             OR LOWER(b.title) LIKE LOWER(CONCAT('%', :term, '%'))
             OR LOWER(b.author) LIKE LOWER(CONCAT('%', :term, '%'))
-            OR LOWER(COALESCE(b.isbn, '')) LIKE LOWER(CONCAT('%', :term, '%')))
+            OR LOWER(COALESCE(b.isbn, '')) LIKE LOWER(CONCAT('%', :term, '%'))
+            OR LOWER(COALESCE(b.publisher, '')) LIKE LOWER(CONCAT('%', :term, '%'))
+            OR LOWER(COALESCE(b.category, '')) LIKE LOWER(CONCAT('%', :term, '%')))
           AND (:category IS NULL OR :category = '' OR LOWER(b.category) = LOWER(:category))
           AND (:availableOnly = false OR b.availableCopies > 0)
         """)

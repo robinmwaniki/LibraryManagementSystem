@@ -20,12 +20,16 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit tests for inventory changes and business rules in borrowing workflows.
+ */
 @ExtendWith(MockitoExtension.class)
 class BorrowingServiceTest {
     @Mock private BorrowingRepository borrowingRepository;
     @Mock private BookRepository bookRepository;
     @Mock private MemberRepository memberRepository;
     @Mock private LibrarySettingsService librarySettingsService;
+    @Mock private ReservationService reservationService;
     @InjectMocks private BorrowingService borrowingService;
 
     @Test
@@ -53,6 +57,43 @@ class BorrowingServiceTest {
     }
 
     @Test
+    void borrowBookRejectsNonActiveMembersWithoutCreatingALoan() {
+        Book book = new Book();
+        book.setId(1L);
+        book.setAvailableCopies(1);
+        Member member = new Member();
+        member.setId(2L);
+        member.setStatus(Member.MembershipStatus.SUSPENDED);
+
+        when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
+        when(memberRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(member));
+
+        assertThrows(IllegalStateException.class, () -> borrowingService.borrowBook(1L, 2L));
+
+        verify(borrowingRepository, never()).save(any(BorrowingRecord.class));
+        verify(bookRepository, never()).save(any(Book.class));
+    }
+
+    @Test
+    void borrowBookRejectsUnavailableInventory() {
+        Book book = new Book();
+        book.setId(1L);
+        book.setAvailableCopies(0);
+        Member activeMember = new Member();
+        activeMember.setId(2L);
+        activeMember.setStatus(Member.MembershipStatus.ACTIVE);
+
+        when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
+        when(memberRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(activeMember));
+
+        // The member must exist and be eligible so the service reaches the inventory validation.
+        assertThrows(IllegalStateException.class, () -> borrowingService.borrowBook(1L, 2L));
+
+        verify(memberRepository).findByIdForUpdate(2L);
+        verify(borrowingRepository, never()).save(any(BorrowingRecord.class));
+    }
+
+    @Test
     void returnBookRestoresStockAndRejectsSecondReturn() {
         Book book = new Book();
         book.setId(1L);
@@ -71,10 +112,42 @@ class BorrowingServiceTest {
         BorrowingRecord returned = borrowingService.returnBook(3L);
         assertEquals(BorrowingRecord.BorrowStatus.RETURNED, returned.getStatus());
         assertEquals(1, book.getAvailableCopies());
+        verify(reservationService).allocateWaitingReservations(1L);
 
         assertThrows(IllegalStateException.class, () -> borrowingService.returnBook(3L));
         verify(bookRepository, times(1)).save(book);
     }
+
+    @Test
+    void returnBookCalculatesOverdueFineAndAppliesConfiguredMaximum() {
+        Book book = new Book();
+        book.setId(1L);
+        book.setTotalCopies(1);
+        book.setAvailableCopies(0);
+
+        BorrowingRecord record = new BorrowingRecord();
+        record.setId(4L);
+        record.setBook(book);
+        record.setStatus(BorrowingRecord.BorrowStatus.BORROWED);
+        record.setDueDate(LocalDateTime.now().minusDays(3));
+
+        LibrarySettings settings = new LibrarySettings();
+        settings.setFinePerDay(5.0);
+        settings.setMaxFine(10.0);
+
+        when(borrowingRepository.findByIdForUpdate(4L)).thenReturn(Optional.of(record));
+        when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
+        when(librarySettingsService.getSettings()).thenReturn(settings);
+        when(borrowingRepository.save(any(BorrowingRecord.class))).thenAnswer(i -> i.getArgument(0));
+
+        BorrowingRecord returned = borrowingService.returnBook(4L);
+
+        // Three overdue days would total 15.00, so the configured cap must apply.
+        assertEquals(10.0, returned.getFine());
+        assertEquals(BorrowingRecord.BorrowStatus.RETURNED, returned.getStatus());
+        assertEquals(1, book.getAvailableCopies());
+    }
+
     @Test
     void renewBookAllowsOnlyOneRenewalForAnActiveLoan() {
         BorrowingRecord record = new BorrowingRecord();
@@ -97,5 +170,4 @@ class BorrowingServiceTest {
         assertThrows(IllegalStateException.class, () -> borrowingService.renewBook(9L));
         verify(borrowingRepository, times(1)).save(record);
     }
-
 }

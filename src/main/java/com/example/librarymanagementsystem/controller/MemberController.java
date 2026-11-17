@@ -1,6 +1,5 @@
 package com.example.librarymanagementsystem.controller;
 
-
 import com.example.librarymanagementsystem.dto.MemberDTO;
 import com.example.librarymanagementsystem.model.Member;
 import com.example.librarymanagementsystem.service.MemberService;
@@ -8,17 +7,20 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/members")
 @RequiredArgsConstructor
 @Tag(name = "Member Management", description = "APIs for managing library members")
 public class MemberController {
+    private static final int MAX_PAGE_SIZE = 100;
+
     private final MemberService memberService;
 
     @PostMapping
@@ -28,9 +30,18 @@ public class MemberController {
     }
 
     @GetMapping
-    @Operation(summary = "Get all members")
-    public ResponseEntity<List<Member>> getAllMembers() {
-        return ResponseEntity.ok(memberService.getAllMembers());
+    @Operation(summary = "Get a page of members with optional search and status filters")
+    public ResponseEntity<Page<Member>> getAllMembers(
+            @RequestParam(defaultValue = "") String search,
+            @RequestParam(required = false) Member.MembershipStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        // Enforce a maximum page size so REST clients cannot load the entire member table.
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        PageRequest pageable = PageRequest.of(safePage, safeSize,
+                Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(memberService.searchMembers(search, status, pageable));
     }
 
     @GetMapping("/{id}")
@@ -54,7 +65,7 @@ public class MemberController {
 
     @GetMapping("/search")
     @Operation(summary = "Search members by last name")
-    public ResponseEntity<List<Member>> searchMembers(@RequestParam String lastName) {
+    public ResponseEntity<java.util.List<Member>> searchMembers(@RequestParam String lastName) {
         return ResponseEntity.ok(memberService.searchMembersByName(lastName));
     }
 

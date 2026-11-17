@@ -2,9 +2,9 @@ name: Java CI
 
 on:
   push:
-    branches: [ master, "feature/**" ]
+    branches: [ master, develop, "feature/**" ]
   pull_request:
-    branches: [ master ]
+    branches: [ develop, master ]
 
 jobs:
   test:
@@ -21,9 +21,6 @@ jobs:
           cache: maven
       - name: Verify Maven installation
         run: mvn --version
-      - name: Run unit and PostgreSQL 18 integration tests
-        run: mvn --batch-mode --no-transfer-progress clean verify
-
       - name: Create CI environment file
         run: |
           cat > .env <<'EOF'
@@ -34,6 +31,9 @@ jobs:
           LIBRARY_ADMIN_PASSWORD=ci-admin-password
           LIBRARY_NOTIFICATIONS_ENABLED=false
           EOF
+
+      - name: Run unit and PostgreSQL 18 integration tests
+        run: mvn --batch-mode --no-transfer-progress clean verify
 
       - name: Build and start Docker Compose stack
         run: docker compose up --build --detach
