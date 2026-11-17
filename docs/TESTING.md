@@ -30,7 +30,7 @@ The test profile uses an isolated H2 database for Spring application-context and
 | --- | --- |
 | `BookServiceTest` | Book update rules, inventory consistency, search normalization and pagination |
 | `MemberServiceTest` | Member registration, duplicate email protection, and deletion safeguards |
-| `BorrowingServiceTest` | Borrowing eligibility, stock changes, returns, overdue fine caps, and renewals |
+| `BorrowingServiceTest` | Borrowing eligibility, stock changes, returns, overdue fine caps, renewals, and reservation queue hand-off |\n| `ReservationServiceTest` | Duplicate prevention, FIFO allocation, cancellation, expiry promotion, and reservation collection |
 | `SecurityIntegrationTest` | Anonymous access restrictions, administrator authentication, and public health endpoint |
 | `PaginationControllerTest` | REST pagination bounds and allow-listed catalogue sort properties |
 | `PostgreSqlLiquibaseIntegrationTest` | PostgreSQL 18 schema creation, Liquibase changesets, Hibernate mapping validation, real database pagination and catalogue search |
@@ -71,6 +71,29 @@ The REST list endpoints return Spring Data page metadata alongside the current p
 - `GET /api/members?page=0&size=20&search=robin&status=ACTIVE`
 
 Both endpoints default to page `0` and size `10`. Negative page indexes are normalized to page zero, and requested page sizes are bounded to a maximum of `100`. The response includes `content`, `number`, `size`, `totalElements`, `totalPages`, `first`, and `last`.
+
+## Book reservations and waiting lists
+
+A member can reserve a title with no available copies and enter its FIFO waiting list. A title with available stock can be reserved immediately; that copy is held by reducing the available inventory count. When a loan is returned, the oldest waiting reservation becomes `READY` and its copy is held. Staff can inspect the reservation register at `/reservations` or use the reservation REST endpoints.
+
+A ready reservation expires after the configurable number of days (default: 3). The expiry scheduler runs hourly by default, releases the unclaimed copy, and promotes the next waiting member. Collection and cancellation requests also process expired holds for that title, so the queue does not depend solely on the scheduled job.
+
+Configuration:
+
+- `LIBRARY_RESERVATION_EXPIRY_DAYS`: ready-hold period in days (1–30; default 3).
+- `LIBRARY_RESERVATION_EXPIRY_CRON`: six-field Spring cron expression for the expiry job (default: hourly).
+
+API examples:
+
+- `POST /api/reservations?bookId=1&memberId=2`: create a reservation or join the queue.
+- `GET /api/reservations/member/2`: list a member's reservation statuses.
+- `GET /api/reservations/book/1/queue`: inspect a title's FIFO queue.
+- `POST /api/reservations/12/collect`: record collection and create a borrowing record.
+- `DELETE /api/reservations/12?memberId=2`: cancel a reservation.
+
+The title's database row is locked before queue changes. This serializes duplicate checks, queue promotion, cancellation, expiry, and collection for the same book. Reservation queue order uses request timestamp followed by the generated ID as a deterministic tie-breaker. A member may have only one active (`WAITING` or `READY`) reservation for a title.
+
+The PostgreSQL Testcontainers test verifies the Liquibase reservation table, persisted queue ordering, and expired-ready lookup. Unit tests cover cancellation and promotion, expiry and promotion, and collection into a loan.
 
 ## Docker Compose smoke test
 
