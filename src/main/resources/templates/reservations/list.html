@@ -39,10 +39,13 @@
                         <td class="fw-semibold" th:text="${reservation.book.title}">Book</td>
                         <td><span th:text="${reservation.member.firstName + ' ' + reservation.member.lastName}">Member</span><small class="d-block text-secondary" th:text="${reservation.member.email}">email</small></td>
                         <td th:text="${#temporals.format(reservation.createdAt, 'dd MMM yyyy HH:mm')}">Date</td>
-                        <td><span class="badge" th:classappend="${reservation.status.name() == 'READY'} ? 'text-bg-success' : (${reservation.status.name() == 'WAITING'} ? 'text-bg-warning' : 'text-bg-secondary')" th:text="${reservation.status}">WAITING</span></td>
+                        <td><span class="badge" th:classappend="${reservation.status.name() == 'READY' ? 'text-bg-success' : (reservation.status.name() == 'WAITING' ? 'text-bg-warning' : 'text-bg-secondary')}" th:text="${reservation.status}">WAITING</span></td>
                         <td th:text="${reservation.readyAt == null ? '—' : #temporals.format(reservation.readyAt, 'dd MMM yyyy HH:mm')}">—</td>
                         <td th:text="${reservation.expiresAt == null ? '—' : #temporals.format(reservation.expiresAt, 'dd MMM yyyy HH:mm')}">—</td>
                         <td>
+                            <form th:if="${reservation.status.name() == 'READY'}" method="post" th:action="@{/reservations/{id}/collect(id=${reservation.id})}">
+                                <button class="btn btn-sm btn-outline-success" type="submit">Mark collected</button>
+                            </form>
                             <form th:if="${reservation.status.name() == 'WAITING' || reservation.status.name() == 'READY'}" method="post" th:action="@{/reservations/{id}/cancel(id=${reservation.id})}">
                                 <input type="hidden" name="memberId" th:value="${reservation.member.id}">
                                 <button class="btn btn-sm btn-outline-danger" type="submit">Cancel</button>
