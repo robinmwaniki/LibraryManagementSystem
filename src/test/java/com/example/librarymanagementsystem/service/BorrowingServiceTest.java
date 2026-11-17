@@ -29,6 +29,7 @@ class BorrowingServiceTest {
     @Mock private BookRepository bookRepository;
     @Mock private MemberRepository memberRepository;
     @Mock private LibrarySettingsService librarySettingsService;
+    @Mock private ReservationService reservationService;
     @InjectMocks private BorrowingService borrowingService;
 
     @Test
@@ -111,6 +112,7 @@ class BorrowingServiceTest {
         BorrowingRecord returned = borrowingService.returnBook(3L);
         assertEquals(BorrowingRecord.BorrowStatus.RETURNED, returned.getStatus());
         assertEquals(1, book.getAvailableCopies());
+        verify(reservationService).allocateWaitingReservations(1L);
 
         assertThrows(IllegalStateException.class, () -> borrowingService.returnBook(3L));
         verify(bookRepository, times(1)).save(book);
