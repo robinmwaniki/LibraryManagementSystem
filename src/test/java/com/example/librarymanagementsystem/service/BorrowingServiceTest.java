@@ -88,7 +88,7 @@ class BorrowingServiceTest {
         // The member must exist and be eligible so the service reaches the inventory validation.
         assertThrows(IllegalStateException.class, () -> borrowingService.borrowBook(1L, 2L));
 
-        verify(memberRepository, never()).findByIdForUpdate(anyLong());
+        verify(memberRepository).findByIdForUpdate(2L);
         verify(borrowingRepository, never()).save(any(BorrowingRecord.class));
     }
 
