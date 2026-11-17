@@ -24,10 +24,10 @@ class SecurityIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
-    void protectedBookApiRedirectsAnonymousRequestsToLogin() throws Exception {
+    void protectedBookApiRejectsAnonymousRequestsWithUnauthorizedStatus() throws Exception {
         mockMvc.perform(get("/api/books"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/login"));
+                // API requests receive an HTTP Basic challenge rather than a browser form redirect.
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
