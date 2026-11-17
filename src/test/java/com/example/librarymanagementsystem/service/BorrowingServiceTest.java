@@ -78,8 +78,14 @@ class BorrowingServiceTest {
         Book book = new Book();
         book.setId(1L);
         book.setAvailableCopies(0);
-        when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
+        Member activeMember = new Member();
+        activeMember.setId(2L);
+        activeMember.setStatus(Member.MembershipStatus.ACTIVE);
 
+        when(bookRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(book));
+        when(memberRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(activeMember));
+
+        // The member must exist and be eligible so the service reaches the inventory validation.
         assertThrows(IllegalStateException.class, () -> borrowingService.borrowBook(1L, 2L));
 
         verify(memberRepository, never()).findByIdForUpdate(anyLong());
