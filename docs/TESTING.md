@@ -40,6 +40,15 @@ The test profile uses an isolated H2 database for Spring application-context and
 
 Book and member service tests verify that queries pass a `Pageable` to Spring Data repositories, preserve active search and filter criteria, report total elements and pages, and return safe empty results for out-of-range page indexes. `PaginationControllerTest` verifies that REST endpoints clamp negative page indexes and cap page sizes at 100. The REST list endpoints and HTML list pages use database-backed pagination; list page sizes are bounded to prevent unbounded reads.
 
+## Paginated list endpoints
+
+The REST list endpoints return Spring Data page metadata alongside the current page content:
+
+- `GET /api/books?page=0&size=10&search=spring&category=Technology&availableOnly=true`
+- `GET /api/members?page=0&size=20&search=robin&status=ACTIVE`
+
+Both endpoints default to page `0` and size `10`. Negative page indexes are normalized to page zero, and requested page sizes are bounded to a maximum of `100`. Search and filter parameters are applied by repository queries before the database page is fetched. The response includes `content`, `number`, `size`, `totalElements`, `totalPages`, `first`, and `last`.
+
 ## Docker Compose smoke test
 
 The CI workflow also builds and starts the full application stack after Maven verification. It waits for `/actuator/health` and prints Compose logs if startup fails.
