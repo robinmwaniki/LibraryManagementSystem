@@ -83,6 +83,11 @@ public class ReservationService {
     }
 
     @Transactional(readOnly = true)
+    public List<BookReservation> getAllReservations() {
+        return reservationRepository.findAllByOrderByCreatedAtAscIdAsc();
+    }
+
+    @Transactional(readOnly = true)
     public List<BookReservation> getMemberReservations(Long memberId) {
         return reservationRepository.findByMemberIdOrderByCreatedAtDesc(memberId);
     }
