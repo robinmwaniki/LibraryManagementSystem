@@ -31,4 +31,13 @@ public interface BookReservationRepository extends JpaRepository<BookReservation
     @Query("SELECT r FROM BookReservation r WHERE r.status = :status AND r.expiresAt <= :now")
     List<BookReservation> findExpiredReadyReservations(@Param("status") ReservationStatus status,
                                                         @Param("now") LocalDateTime now);
+
+    @Query("""
+            SELECT r FROM BookReservation r
+            WHERE r.book.id = :bookId AND r.status = :status AND r.expiresAt <= :now
+            ORDER BY r.expiresAt ASC, r.id ASC
+            """)
+    List<BookReservation> findExpiredReadyReservationsForBook(@Param("bookId") Long bookId,
+                                                               @Param("status") ReservationStatus status,
+                                                               @Param("now") LocalDateTime now);
 }
