@@ -33,7 +33,7 @@ The test profile uses an isolated H2 database for Spring application-context and
 | `BorrowingServiceTest` | Borrowing eligibility, stock changes, returns, overdue fine caps, and renewals |
 | `SecurityIntegrationTest` | Anonymous access restrictions, administrator authentication, and public health endpoint |
 | `PaginationControllerTest` | REST pagination bounds for book and member endpoints |
-| `PostgreSqlLiquibaseIntegrationTest` | PostgreSQL 18 schema creation, Liquibase changesets, and Hibernate mapping validation |
+| `PostgreSqlLiquibaseIntegrationTest` | PostgreSQL 18 schema creation, Liquibase changesets, Hibernate mapping validation, and real database pagination |
 | `LibraryManagementSystemApplicationTests` | Spring application context startup |
 
 ## Pagination regression coverage
