@@ -35,7 +35,7 @@ public class FineLedgerService {
         BigDecimal adjustment = money(amount);
         if (adjustment.signum() == 0) throw new IllegalArgumentException("Adjustment cannot be zero.");
         if (reason == null || reason.isBlank()) throw new IllegalArgumentException("An adjustment reason is required.");
-        BigDecimal revisedFine = assessed(loan).add(adjustment);
+        BigDecimal revisedFine = assessed(loan).add(adjustmentRepository.sumByBorrowingId(borrowingId)).add(adjustment);
         BigDecimal paid = paymentRepository.sumByBorrowingId(borrowingId);
         if (revisedFine.signum() < 0 || revisedFine.compareTo(paid) < 0)
             throw new IllegalArgumentException("Adjustment cannot reduce the fine below zero or below the amount already paid.");
