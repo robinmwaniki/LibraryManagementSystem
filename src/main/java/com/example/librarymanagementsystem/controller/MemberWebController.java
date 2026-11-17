@@ -4,6 +4,7 @@ import com.example.librarymanagementsystem.dto.MemberDTO;
 import com.example.librarymanagementsystem.model.Member;
 import com.example.librarymanagementsystem.service.BorrowingService;
 import com.example.librarymanagementsystem.service.MemberService;
+import com.example.librarymanagementsystem.service.FineLedgerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
@@ -25,6 +26,7 @@ public class MemberWebController {
 
     private final MemberService memberService;
     private final BorrowingService borrowingService;
+    private final FineLedgerService fineLedgerService;
 
     @GetMapping
     public String listMembers(@RequestParam(defaultValue = "") String search,
@@ -49,6 +51,11 @@ public class MemberWebController {
         model.addAttribute("pageSize", safeSize);
         model.addAttribute("search", search);
         model.addAttribute("selectedStatus", status);
+        // Balances are computed from immutable payment/adjustment ledger entries, not overwritten totals.
+        var outstandingBalances = new java.util.HashMap<Long, java.math.BigDecimal>();
+        members.getContent().forEach(member -> outstandingBalances.put(member.getId(),
+                fineLedgerService.outstandingForMember(member.getId())));
+        model.addAttribute("outstandingBalances", outstandingBalances);
         return "members/list";
     }
 
