@@ -4,6 +4,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import com.example.librarymanagementsystem.model.Book;
+import com.example.librarymanagementsystem.model.Member;
+import com.example.librarymanagementsystem.repository.BookRepository;
+import com.example.librarymanagementsystem.repository.MemberRepository;
+import java.util.List;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -43,6 +51,12 @@ class PostgreSqlLiquibaseIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+    @Autowired
+    private BookRepository bookRepository;
+
+    @Autowired
+    private MemberRepository memberRepository;
+
     @Test
     void liquibaseCreatesAllApplicationTablesAndHibernateValidatesMappings() {
         assertThat(tableExists("books")).isTrue();
@@ -59,6 +73,51 @@ class PostgreSqlLiquibaseIntegrationTest {
                 "SELECT COUNT(*) FROM library_settings WHERE id = 1 AND loan_period_days = 14",
                 Integer.class);
         assertThat(defaultSettings).isEqualTo(1);
+    }
+
+
+    @Test
+    void bookAndMemberSearchQueriesApplyPaginationInsidePostgreSql() {
+        List<Book> books = java.util.stream.IntStream.rangeClosed(1, 3).mapToObj(index -> {
+            Book book = new Book();
+            book.setTitle("Pagination Catalogue " + index);
+            book.setAuthor("Pagination Author");
+            book.setIsbn("97800000010" + index);
+            book.setCategory("Testing");
+            book.setTotalCopies(2);
+            book.setAvailableCopies(2);
+            return book;
+        }).toList();
+        bookRepository.saveAll(books);
+
+        List<Member> members = java.util.stream.IntStream.rangeClosed(1, 3).mapToObj(index -> {
+            Member member = new Member();
+            member.setFirstName("Pagination");
+            member.setLastName("Member " + index);
+            member.setEmail("pagination.member." + index + "@example.test");
+            member.setPhone("+2547000000" + index);
+            member.setStatus(Member.MembershipStatus.ACTIVE);
+            return member;
+        }).toList();
+        memberRepository.saveAll(members);
+
+        Page<Book> firstBookPage = bookRepository.searchBooks("Pagination", "Testing", false,
+                PageRequest.of(0, 2, Sort.by("id")));
+        Page<Book> secondBookPage = bookRepository.searchBooks("Pagination", "Testing", false,
+                PageRequest.of(1, 2, Sort.by("id")));
+        assertThat(firstBookPage.getContent()).hasSize(2);
+        assertThat(firstBookPage.getTotalElements()).isEqualTo(3);
+        assertThat(firstBookPage.getTotalPages()).isEqualTo(2);
+        assertThat(secondBookPage.getContent()).hasSize(1);
+
+        Page<Member> firstMemberPage = memberRepository.searchMembers("Pagination",
+                Member.MembershipStatus.ACTIVE, PageRequest.of(0, 2, Sort.by("id")));
+        Page<Member> secondMemberPage = memberRepository.searchMembers("Pagination",
+                Member.MembershipStatus.ACTIVE, PageRequest.of(1, 2, Sort.by("id")));
+        assertThat(firstMemberPage.getContent()).hasSize(2);
+        assertThat(firstMemberPage.getTotalElements()).isEqualTo(3);
+        assertThat(firstMemberPage.getTotalPages()).isEqualTo(2);
+        assertThat(secondMemberPage.getContent()).hasSize(1);
     }
 
     private boolean tableExists(String tableName) {
