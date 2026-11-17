@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/books")
@@ -22,6 +23,12 @@ import java.util.List;
 @Tag(name = "Book Management", description = "APIs for managing books")
 public class BookController {
     private static final int MAX_PAGE_SIZE = 100;
+    private static final Map<String, String> SORT_FIELDS = Map.of(
+            "title", "title",
+            "author", "author",
+            "publicationDate", "publicationYear",
+            "recentlyAdded", "createdAt"
+    );
 
     private final BookService bookService;
 
@@ -32,18 +39,27 @@ public class BookController {
     }
 
     @GetMapping
-    @Operation(summary = "Get a page of books with optional catalogue filters")
+    @Operation(summary = "Get a page of books with catalogue search, filters and sorting")
     public ResponseEntity<Page<Book>> getAllBooks(
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "") String category,
             @RequestParam(defaultValue = "false") boolean availableOnly,
+            @RequestParam(defaultValue = "recentlyAdded") String sort,
+            @RequestParam(defaultValue = "asc") String direction,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
+        // Whitelist sort keys so untrusted query parameters never become entity paths.
+        String sortField = SORT_FIELDS.getOrDefault(sort, "createdAt");
+        Sort.Direction sortDirection = "desc".equalsIgnoreCase(direction)
+                ? Sort.Direction.DESC : Sort.Direction.ASC;
+        if ("recentlyAdded".equals(sort)) {
+            sortDirection = Sort.Direction.DESC;
+        }
+
         // Clamp client-supplied paging values to prevent unbounded database reads.
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
-        PageRequest pageable = PageRequest.of(safePage, safeSize,
-                Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageRequest pageable = PageRequest.of(safePage, safeSize, Sort.by(sortDirection, sortField));
         return ResponseEntity.ok(bookService.searchBooks(search, category, availableOnly, pageable));
     }
 
