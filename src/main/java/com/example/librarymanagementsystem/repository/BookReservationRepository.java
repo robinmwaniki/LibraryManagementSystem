@@ -20,6 +20,8 @@ public interface BookReservationRepository extends JpaRepository<BookReservation
 
     List<BookReservation> findByMemberIdOrderByCreatedAtDesc(Long memberId);
 
+    List<BookReservation> findAllByOrderByCreatedAtAscIdAsc();
+
     List<BookReservation> findByBookIdOrderByCreatedAtAscIdAsc(Long bookId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
