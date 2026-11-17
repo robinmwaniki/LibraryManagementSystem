@@ -35,6 +35,10 @@ The test profile uses an isolated H2 database for Spring application-context and
 | `PostgreSqlLiquibaseIntegrationTest` | PostgreSQL 18 schema creation, Liquibase changesets, and Hibernate mapping validation |
 | `LibraryManagementSystemApplicationTests` | Spring application context startup |
 
+## Pagination regression coverage
+
+Book and member list tests verify that service queries pass a `Pageable` to Spring Data repositories, preserve active search and filter criteria, report total elements and pages, and return safe empty results for out-of-range page indexes. The REST list endpoints and HTML list pages use database-backed pagination; list page sizes are bounded to prevent unbounded reads.
+
 ## Docker Compose smoke test
 
 The CI workflow also builds and starts the full application stack after Maven verification. It waits for `/actuator/health` and prints Compose logs if startup fails.
