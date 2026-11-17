@@ -23,6 +23,7 @@ public class BorrowingService {
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
     private final LibrarySettingsService librarySettingsService;
+    private final ReservationService reservationService;
 
     public BorrowingRecord borrowBook(Long bookId, Long memberId) {
         Book book = bookRepository.findByIdForUpdate(bookId)
@@ -112,6 +113,9 @@ public class BorrowingService {
         }
         book.setAvailableCopies(available + 1);
         bookRepository.save(book);
+
+        // A returned copy is offered to the oldest waiting reservation before public availability.
+        reservationService.allocateWaitingReservations(book.getId());
         return borrowingRepository.save(record);
     }
 
