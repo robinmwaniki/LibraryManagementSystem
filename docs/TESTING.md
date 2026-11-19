@@ -159,3 +159,12 @@ Example requests:
 GET /reports?startDate=2026-11-01&endDate=2026-11-30&category=Technology&status=RETURNED
 GET /reports/export.csv?startDate=2026-11-01&endDate=2026-11-30&category=Technology&status=RETURNED
 ```
+
+
+## Audit history
+
+Important catalogue, member, circulation, and fine-ledger operations write an audit entry in the same database transaction as the business change. Entries include the authenticated actor (or `system` for unauthenticated scheduled/system work), action, record type and ID, timestamp, and concise before/after summaries. Member summaries intentionally omit names, email addresses, phone numbers, and postal addresses; fine summaries omit payment references and adjustment reasons. Credential-like values are redacted before persistence.
+
+Audit history is available to administrators at `/audit`. Filters include inclusive date range, actor username, action, record type, and record ID. Results are newest first and paginated. The audit repository exposes only insert and search operations; the application does not provide audit edit or delete actions. The Liquibase migration creates indexes for time, actor/action, and record lookups.
+
+`AuditServiceTest` verifies actor attribution and secret redaction. `AuditControllerTest` verifies search filters and inclusive end-date handling. Service tests verify that book updates, member registration, borrowing, and fine payments emit audit events. `SecurityIntegrationTest` verifies that the audit screen redirects anonymous users to sign-in and is available to the configured administrator. The PostgreSQL integration test verifies the audit table and migration count.
