@@ -7,6 +7,8 @@ import com.example.librarymanagementsystem.repository.BookRepository;
 import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +25,7 @@ public class BookService {
     @Autowired(required = false)
     public void setAuditService(AuditService auditService) { this.auditService = auditService; }
 
+    @CacheEvict(cacheNames = {"catalogueSearch", "catalogueCategories"}, allEntries = true)
     public Book addBook(BookDTO bookDTO) {
         String isbn = normalizeIsbn(bookDTO.getIsbn());
         if (bookRepository.existsByIsbn(isbn)) {
@@ -48,6 +51,7 @@ public class BookService {
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
     }
 
+    @CacheEvict(cacheNames = {"catalogueSearch", "catalogueCategories"}, allEntries = true)
     public Book updateBook(Long id, BookDTO bookDTO) {
         Book book = bookRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
@@ -72,6 +76,7 @@ public class BookService {
         return saved;
     }
 
+    @CacheEvict(cacheNames = {"catalogueSearch", "catalogueCategories"}, allEntries = true)
     public void deleteBook(Long id) {
         Book book = getBookById(id);
         if (borrowingRepository.existsByBookId(id)) {
@@ -103,11 +108,13 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "catalogueCategories")
     public List<String> getCategories() {
         return bookRepository.findDistinctCategories();
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "catalogueSearch")
     public org.springframework.data.domain.Page<Book> searchBooks(String search, String category,
             boolean availableOnly, org.springframework.data.domain.Pageable pageable) {
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();

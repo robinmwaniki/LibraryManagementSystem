@@ -217,3 +217,19 @@ Actuator exposes health, info, metrics, and Prometheus metrics. Only /actuator/h
 The controlled Sentry test endpoint is disabled unless LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=true. When temporarily enabled, only an administrator can POST to /api/diagnostics/sentry-test. The endpoint emits a generic test exception and returns the Sentry event ID. Disable the flag again after confirming delivery. It is not intended as a permanent public endpoint.
 
 Tests cover correlation ID validation and cleanup, Sentry event scrubbing, DSN-absent behavior, diagnostic event capture delegation, and administrator-only diagnostic access. The application-context test also verifies that Sentry is optional when no DSN is configured.
+
+
+## Catalogue caching and concurrent circulation verification
+
+The application uses two bounded local Caffeine caches:
+
+| Cache | Key | Bound | Write TTL | Invalidation |
+| --- | --- | --- | --- | --- |
+| catalogueSearch | Normalized search term, category, available-only flag, and Spring Data Pageable (page, size, sort) | 500 keys | 2 minutes | Book create/update/delete; borrow/return; reservation creation, cancellation, collection, FIFO allocation, and expiry |
+| catalogueCategories | Single empty key | 1 entry | 10 minutes | Book create/update/delete |
+
+The cache is process-local and intentionally does not participate in stock or loan-limit decisions. A multi-instance deployment may have short-lived differences in read-only search pages until TTL expiry; every process still validates inventory against PostgreSQL. Redis/distributed locks are intentionally not introduced without measured need. Cache hit/miss/eviction metrics are exposed by the authenticated Actuator metrics endpoint.
+
+PostgreSQL serializes circulation mutations with pessimistic row locks. Borrowing locks book then member before checking available stock and active loans. Return and renewal lock the borrowing row; return then locks the book before incrementing stock. Reservation operations lock the book before reservation rows; expiry processes distinct book IDs in sorted order to reduce deadlock risk. Member-level limits are serialized with the member row lock before the active-loan count query. A database CHECK constraint enforces non-negative total copies and available copies, and prevents available copies from exceeding total copies. Service methods are transactional, so stock and borrowing record changes commit or roll back together.
+
+Concurrent requests that lose the lock race re-read the committed state and receive the existing domain conflict (for example, no copies available, already returned, or already renewed). They are not silently retried. PostgreSQL integration tests run two simultaneous operations and verify that only one of two last-copy borrows, duplicate returns, or duplicate renewals succeeds. The cache integration test verifies cache hits and that book mutations evict both search and category results.

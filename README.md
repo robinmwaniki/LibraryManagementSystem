@@ -162,3 +162,12 @@ The Sentry Developer plan is free but has monthly event quotas. This project kee
 
 
 For Render deployments, add SENTRY_DSN (optional), SENTRY_ENVIRONMENT, SENTRY_RELEASE, SENTRY_ERROR_SAMPLE_RATE, and SENTRY_TRACES_SAMPLE_RATE as service environment variables. Leave the DSN empty to keep Sentry disabled. Also keep LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=false except during a controlled administrator-only delivery test.
+
+
+## Catalogue caching and concurrent circulation
+
+Catalogue search pages are cached in a bounded in-process Caffeine cache (maximum 500 keys, two-minute write TTL). Cache keys include the normalized search term, category, availability filter, and pageable/sort arguments. Distinct catalogue categories use a one-entry cache with a ten-minute TTL. Book create/update/delete operations evict both caches; borrowing, returns, and reservation/hold/expiry operations evict search results so availability never remains stale beyond a successful mutation. Cache statistics are available through the authenticated Actuator metrics endpoint. No Redis or distributed lock service is required.
+
+Circulation writes use PostgreSQL row-level pessimistic locks inside service transactions. Borrowing locks the book row then the member row before checking available copies and active-loan limits. Returning and renewing lock the borrowing row first; return then locks the book row before restoring inventory. Reservation workflows lock the book row before reservation rows, and expiry processes book IDs in sorted order to keep lock acquisition deterministic. A database CHECK constraint also enforces total_copies >= 0 and 0 <= available_copies <= total_copies as a final inventory invariant.
+
+Concurrent conflicts are intentionally rejected with a domain conflict/validation response after the lock is acquired; they do not retry silently or over-issue stock. Member loan limits are serialized by locking the member row before counting active loans, because a cross-row count cannot be enforced with a normal SQL CHECK constraint. These guarantees depend on PostgreSQL transactions and row locks; an in-memory cache is never used to decide inventory or borrowing eligibility.

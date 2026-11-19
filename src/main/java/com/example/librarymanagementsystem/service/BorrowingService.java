@@ -9,6 +9,7 @@ import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import com.example.librarymanagementsystem.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class BorrowingService {
     @Autowired(required = false)
     public void setAuditService(AuditService auditService) { this.auditService = auditService; }
 
+    @CacheEvict(cacheNames = "catalogueSearch", allEntries = true)
     public BorrowingRecord borrowBook(Long bookId, Long memberId) {
         Book book = bookRepository.findByIdForUpdate(bookId)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found"));
@@ -92,6 +94,7 @@ public class BorrowingService {
         return saved;
     }
 
+    @CacheEvict(cacheNames = "catalogueSearch", allEntries = true)
     public BorrowingRecord returnBook(Long borrowingId) {
         BorrowingRecord record = borrowingRepository.findByIdForUpdate(borrowingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Borrowing record not found"));

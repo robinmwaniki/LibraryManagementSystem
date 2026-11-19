@@ -35,7 +35,7 @@ public class Book {
     @Column(name = "total_copies", nullable = false)
     private Integer totalCopies;
 
-    @Column(name = "available_copies")
+    @Column(name = "available_copies", nullable = false)
     private Integer availableCopies;
 
     @Column(name = "shelf_location")
