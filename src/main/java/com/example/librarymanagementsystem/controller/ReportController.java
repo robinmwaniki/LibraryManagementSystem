@@ -1,6 +1,5 @@
 package com.example.librarymanagementsystem.controller;
 
-import com.example.librarymanagementsystem.model.Book;
 import com.example.librarymanagementsystem.model.BorrowingRecord;
 import com.example.librarymanagementsystem.repository.BookRepository;
 import com.example.librarymanagementsystem.repository.BorrowingRepository;
@@ -25,7 +24,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.Map;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Controller
