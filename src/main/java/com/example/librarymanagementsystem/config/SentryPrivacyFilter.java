@@ -1,5 +1,6 @@
 package com.example.librarymanagementsystem.config;
 
+import io.sentry.Hint;
 import io.sentry.SentryEvent;
 import io.sentry.SentryOptions;
 import io.sentry.protocol.SentryException;
@@ -15,7 +16,7 @@ import java.util.List;
 @Component
 public class SentryPrivacyFilter implements SentryOptions.BeforeSendCallback {
     @Override
-    public SentryEvent execute(SentryEvent event, Object hint) {
+    public SentryEvent execute(SentryEvent event, Hint hint) {
         if (event == null) {
             return null;
         }
