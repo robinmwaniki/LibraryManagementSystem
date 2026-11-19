@@ -196,3 +196,24 @@ The CI smoke test inserts a known book, member, and borrowing record, takes a ba
 7. Retain the pre-restore database snapshot until recovery is accepted.
 
 Backup files contain library and member records and must be treated as sensitive data. Store them outside the repository, restrict access, encrypt them at rest and during transfer, and maintain an off-host/off-site copy. Do not include credentials or .env files in backups or commit dump files. The Docker named volume postgres_data is persistent storage, not a backup: deleting the volume or losing the Docker host can destroy the data.
+
+
+## Sentry, structured logging, and telemetry privacy
+
+The application uses the Jakarta Spring Boot Sentry starter and Logstash Logback JSON encoder. Sentry is disabled when SENTRY_DSN is blank; local development, tests, and deployments do not require an external Sentry account. Configure DSN, environment, release, and sample rates through environment variables only.
+
+Privacy controls:
+- Sentry default PII collection is disabled and request-body capture is set to none.
+- The before-send callback removes request and user context and all breadcrumbs.
+- Free-form event and exception messages are redacted; exception class and stack frames remain for diagnosis.
+- Do not place credentials, session IDs, member names/contact details, borrowing notes, payment references, or fine adjustment reasons in log messages, tags, extras, or custom contexts.
+- Do not enable Sentry log forwarding or performance tracing by default. Trace sample rate defaults to zero.
+- Keep DSNs and deployment secrets in environment settings or a secrets manager; do not commit them.
+
+Every HTTP request has an X-Correlation-ID. A caller-supplied value is accepted only when it matches the restricted 1–64 character allow-list; otherwise a UUID is generated. The value is returned in the response, placed in MDC during request processing, and emitted in structured JSON logs. MDC is cleared after the request to prevent thread-pool leakage.
+
+Actuator exposes health, info, metrics, and Prometheus metrics. Only /actuator/health is public; details are hidden unless the caller is authenticated. The remaining actuator endpoints require authentication. Database health details are never shown to anonymous callers.
+
+The controlled Sentry test endpoint is disabled unless LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=true. When temporarily enabled, only an administrator can POST to /api/diagnostics/sentry-test. The endpoint emits a generic test exception and returns the Sentry event ID. Disable the flag again after confirming delivery. It is not intended as a permanent public endpoint.
+
+Tests cover correlation ID validation and cleanup, Sentry event scrubbing, DSN-absent behavior, diagnostic event capture delegation, and administrator-only diagnostic access. The application-context test also verifies that Sentry is optional when no DSN is configured.
