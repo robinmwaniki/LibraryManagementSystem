@@ -40,8 +40,30 @@ class SecurityIntegrationTest {
     }
 
     @Test
-    void healthEndpointIsPublic() throws Exception {
+    void auditHistoryIsRestrictedToAdministrators() throws Exception {
+        mockMvc.perform(get("/audit"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/audit")
+                        .with(SecurityMockMvcRequestPostProcessors.httpBasic("test-admin", "test-password")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("audit"));
+    }
+
+    @Test
+    void healthEndpointIsPublicWithoutComponentDetails() throws Exception {
         mockMvc.perform(get("/actuator/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components").doesNotExist());
+    }
+
+    @Test
+    void metricsEndpointsRequireAuthentication() throws Exception {
+        mockMvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/actuator/prometheus")
+                        .with(SecurityMockMvcRequestPostProcessors.httpBasic("test-admin", "test-password")))
                 .andExpect(status().isOk());
     }
 }

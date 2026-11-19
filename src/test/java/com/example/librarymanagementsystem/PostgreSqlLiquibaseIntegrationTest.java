@@ -10,10 +10,22 @@ import org.springframework.data.domain.Sort;
 import com.example.librarymanagementsystem.model.Book;
 import com.example.librarymanagementsystem.model.BookReservation;
 import com.example.librarymanagementsystem.model.Member;
+import com.example.librarymanagementsystem.model.BorrowingRecord;
 import com.example.librarymanagementsystem.repository.BookRepository;
 import com.example.librarymanagementsystem.repository.BookReservationRepository;
 import com.example.librarymanagementsystem.repository.MemberRepository;
+import com.example.librarymanagementsystem.repository.BorrowingRepository;
+import com.example.librarymanagementsystem.service.BorrowingService;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -27,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The test is skipped automatically on machines without a Docker daemon.
  */
 @Testcontainers(disabledWithoutDocker = true)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest
 class PostgreSqlLiquibaseIntegrationTest {
 
     @Container
@@ -62,6 +74,12 @@ class PostgreSqlLiquibaseIntegrationTest {
     @Autowired
     private BookReservationRepository reservationRepository;
 
+    @Autowired
+    private BorrowingRepository borrowingRepository;
+
+    @Autowired
+    private BorrowingService borrowingService;
+
     @Test
     void liquibaseCreatesAllApplicationTablesAndHibernateValidatesMappings() {
         assertThat(tableExists("books")).isTrue();
@@ -69,11 +87,15 @@ class PostgreSqlLiquibaseIntegrationTest {
         assertThat(tableExists("library_settings")).isTrue();
         assertThat(tableExists("borrowing_records")).isTrue();
         assertThat(tableExists("book_reservations")).isTrue();
+        assertThat(tableExists("fine_payments")).isTrue();
+        assertThat(tableExists("fine_adjustments")).isTrue();
+        assertThat(tableExists("audit_logs")).isTrue();
+        assertThat(checkConstraintExists("ck_books_copy_counts")).isTrue();
         assertThat(tableExists("databasechangelog")).isTrue();
 
         Integer changesets = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM databasechangelog", Integer.class);
-        assertThat(changesets).isEqualTo(5);
+        assertThat(changesets).isEqualTo(8);
 
         Integer defaultSettings = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM library_settings WHERE id = 1 AND loan_period_days = 14",
@@ -182,6 +204,109 @@ class PostgreSqlLiquibaseIntegrationTest {
         List<BookReservation> expired = reservationRepository.findExpiredReadyReservationsForBook(
                 book.getId(), BookReservation.ReservationStatus.READY, now);
         assertThat(expired).extracting(BookReservation::getId).containsExactly(second.getId());
+    }
+
+
+    @Test
+    void concurrentBorrowRequestsCannotOverIssueTheLastCopy() throws Exception {
+        Book book = createBook("Concurrent Borrow", 1, 1);
+        Member member = createMember("concurrent.borrow");
+
+        long successes = runTwoConcurrently(() -> borrowingService.borrowBook(book.getId(), member.getId()));
+
+        assertThat(successes).isEqualTo(1);
+        Book reloaded = bookRepository.findById(book.getId()).orElseThrow();
+        assertThat(reloaded.getAvailableCopies()).isZero();
+        assertThat(borrowingRepository.findByBookId(book.getId()).stream()
+                .filter(record -> record.getStatus() == BorrowingRecord.BorrowStatus.BORROWED))
+                .hasSize(1);
+    }
+
+    @Test
+    void concurrentReturnsRestoreInventoryOnlyOnce() throws Exception {
+        Book book = createBook("Concurrent Return", 1, 1);
+        Member member = createMember("concurrent.return");
+        BorrowingRecord loan = borrowingService.borrowBook(book.getId(), member.getId());
+
+        long successes = runTwoConcurrently(() -> borrowingService.returnBook(loan.getId()));
+
+        assertThat(successes).isEqualTo(1);
+        assertThat(bookRepository.findById(book.getId()).orElseThrow().getAvailableCopies()).isEqualTo(1);
+        assertThat(borrowingRepository.findById(loan.getId()).orElseThrow().getStatus())
+                .isEqualTo(BorrowingRecord.BorrowStatus.RETURNED);
+    }
+
+    @Test
+    void concurrentRenewalsCannotExtendTheSameLoanTwice() throws Exception {
+        Book book = createBook("Concurrent Renewal", 1, 1);
+        Member member = createMember("concurrent.renewal");
+        BorrowingRecord loan = borrowingService.borrowBook(book.getId(), member.getId());
+        java.time.LocalDateTime originalDueDate = loan.getDueDate();
+
+        long successes = runTwoConcurrently(() -> borrowingService.renewBook(loan.getId()));
+
+        BorrowingRecord renewed = borrowingRepository.findById(loan.getId()).orElseThrow();
+        assertThat(successes).isEqualTo(1);
+        assertThat(renewed.getRenewalCount()).isEqualTo(1);
+        assertThat(renewed.getDueDate()).isAfter(originalDueDate);
+    }
+
+    private Book createBook(String title, int totalCopies, int availableCopies) {
+        Book book = new Book();
+        book.setTitle(title);
+        book.setAuthor("Concurrency Integration");
+        book.setIsbn(UUID.randomUUID().toString().replace("-", "").substring(0, 13));
+        book.setCategory("Concurrency");
+        book.setTotalCopies(totalCopies);
+        book.setAvailableCopies(availableCopies);
+        return bookRepository.saveAndFlush(book);
+    }
+
+    private Member createMember(String emailPrefix) {
+        Member member = new Member();
+        member.setFirstName("Concurrent");
+        member.setLastName("Integration");
+        member.setEmail(emailPrefix + "." + UUID.randomUUID() + "@example.test");
+        member.setPhone("+254700000001");
+        member.setStatus(Member.MembershipStatus.ACTIVE);
+        member.setMaxBooksAllowed(5);
+        return memberRepository.saveAndFlush(member);
+    }
+
+    private long runTwoConcurrently(Runnable operation) throws InterruptedException, ExecutionException, TimeoutException {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch ready = new CountDownLatch(2);
+        CountDownLatch start = new CountDownLatch(1);
+        Callable<Boolean> task = () -> {
+            ready.countDown();
+            if (!start.await(10, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Concurrent test start barrier timed out.");
+            }
+            try {
+                operation.run();
+                return true;
+            } catch (IllegalStateException expectedConflict) {
+                return false;
+            }
+        };
+        try {
+            Future<Boolean> first = executor.submit(task);
+            Future<Boolean> second = executor.submit(task);
+            assertThat(ready.await(10, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            return (first.get(30, TimeUnit.SECONDS) ? 1 : 0)
+                    + (second.get(30, TimeUnit.SECONDS) ? 1 : 0);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private boolean checkConstraintExists(String constraintName) {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM information_schema.table_constraints "
+                        + "WHERE table_schema = current_schema() AND table_name = 'books' AND constraint_name = ?",
+                Integer.class, constraintName);
+        return count != null && count == 1;
     }
 
     private boolean tableExists(String tableName) {

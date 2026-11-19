@@ -110,3 +110,64 @@ The test profile uses an isolated in-memory H2 database and disables Liquibase; 
 - Authentication is required for management pages and API routes.
 - Spring Security CSRF protection remains enabled.
 - Use HTTPS and a secrets manager for network-accessible deployments.
+
+
+## PostgreSQL backup and restore
+
+The Docker Compose PostgreSQL service supports online custom-format backups. The scripts use the database container's configured credentials without putting passwords on the command line.
+
+Run these commands from the repository root in WSL or Git Bash, with Docker Desktop running and the Compose stack started:
+
+```bash
+# Create a timestamped backup under backups/ (directory is git-ignored).
+bash scripts/backup-postgres.sh
+
+# Or choose an explicit destination.
+bash scripts/backup-postgres.sh backups/pre-deployment.dump
+
+# Restore into a new database without replacing the configured source database.
+bash scripts/restore-postgres.sh backups/pre-deployment.dump library_restore_check
+
+# Restore into the configured database only after reviewing the warning and typing RESTORE.
+bash scripts/restore-postgres.sh backups/pre-deployment.dump
+```
+
+The restore script validates the archive, confirms the destination, creates a missing target database, and uses a single transaction with pg_restore --clean --if-exists. Treat restore as a destructive operation. Stop application writes or place the application in maintenance mode before restoring a live production database, then verify the restored data and application health before reopening traffic.
+
+### Backup protection and recovery
+
+- Backups are not stored in Git. The local backups/ directory and PostgreSQL dump extensions are ignored by Git.
+- Restrict filesystem access, encrypt backup files at rest and in transit, and copy verified backups to a separate protected/off-site storage location.
+- Keep database credentials in the environment/secrets manager. A database dump does not include the .env file, administrator credentials, SMTP credentials, or other deployment secrets.
+- Docker named volumes provide persistence across container recreation; they are not independent backups and do not protect against volume deletion, host failure, ransomware, or operator error.
+- Keep more than one dated backup, define retention and recovery-point objectives, and periodically test restoration into an isolated database.
+- Never commit real database dumps or credentials to the repository.
+
+
+## Error monitoring and operational logs
+
+Sentry error reporting is optional. The application starts normally when SENTRY_DSN is blank. To enable it, create a Sentry Java/Spring Boot project and set SENTRY_DSN in your deployment environment or local .env file. Do not commit the DSN or other secrets. Configure SENTRY_ENVIRONMENT and SENTRY_RELEASE for each deployment.
+
+The project uses structured JSON logs on stdout. Each request receives a validated X-Correlation-ID (or a generated UUID), which is returned in the response and included in the JSON log MDC. Forward container stdout to your log platform and retain the correlation ID when searching across log events.
+
+Privacy defaults are intentionally restrictive: Sentry default PII collection is disabled, request bodies are not sent, request/user context and breadcrumbs are removed by the before-send filter, and free-form exception messages are redacted while exception types and stack frames remain. Do not add member details, credentials, session IDs, or payment data to log messages or custom Sentry tags/extras.
+
+Actuator exposes health, info, metrics, and Prometheus metrics. The health endpoint is public but component details are hidden; the other actuator endpoints require authentication. No database URL, credentials, or detailed health information is exposed publicly.
+
+### Verify Sentry delivery
+
+Set SENTRY_DSN and temporarily set LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=true. Sign in as an administrator and send a CSRF-protected POST request to /api/diagnostics/sentry-test. The endpoint is absent by default, is administrator-only when enabled, and sends one generic controlled exception. Confirm it appears in the configured Sentry environment, then set the flag back to false and redeploy.
+
+The Sentry Developer plan is free but has monthly event quotas. This project keeps performance tracing disabled by default and sends error events only; monitor usage and adjust SENTRY_ERROR_SAMPLE_RATE if needed. Events dropped after the free quota is reached are not queued for later delivery.
+
+
+For Render deployments, add SENTRY_DSN (optional), SENTRY_ENVIRONMENT, SENTRY_RELEASE, SENTRY_ERROR_SAMPLE_RATE, and SENTRY_TRACES_SAMPLE_RATE as service environment variables. Leave the DSN empty to keep Sentry disabled. Also keep LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=false except during a controlled administrator-only delivery test.
+
+
+## Catalogue caching and concurrent circulation
+
+Catalogue search pages are cached in a bounded in-process Caffeine cache (maximum 500 keys, two-minute write TTL). Cache keys include the normalized search term, category, availability filter, and pageable/sort arguments. Distinct catalogue categories use a one-entry cache with a ten-minute TTL. Book create/update/delete operations evict both caches; borrowing, returns, and reservation/hold/expiry operations evict search results so availability never remains stale beyond a successful mutation. Cache statistics are available through the authenticated Actuator metrics endpoint. No Redis or distributed lock service is required.
+
+Circulation writes use PostgreSQL row-level pessimistic locks inside service transactions. Borrowing locks the book row then the member row before checking available copies and active-loan limits. Returning and renewing lock the borrowing row first; return then locks the book row before restoring inventory. Reservation workflows lock the book row before reservation rows, and expiry processes book IDs in sorted order to keep lock acquisition deterministic. A database CHECK constraint also enforces total_copies >= 0 and 0 <= available_copies <= total_copies as a final inventory invariant.
+
+Concurrent conflicts are intentionally rejected with a domain conflict/validation response after the lock is acquired; they do not retry silently or over-issue stock. Member loan limits are serialized by locking the member row before counting active loans, because a cross-row count cannot be enforced with a normal SQL CHECK constraint. These guarantees depend on PostgreSQL transactions and row locks; an in-memory cache is never used to decide inventory or borrowing eligibility.

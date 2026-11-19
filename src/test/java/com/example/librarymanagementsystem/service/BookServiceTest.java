@@ -4,6 +4,7 @@ import com.example.librarymanagementsystem.dto.BookDTO;
 import com.example.librarymanagementsystem.model.Book;
 import com.example.librarymanagementsystem.repository.BookRepository;
 import com.example.librarymanagementsystem.repository.BorrowingRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -25,7 +26,11 @@ import static org.mockito.Mockito.*;
 class BookServiceTest {
     @Mock private BookRepository bookRepository;
     @Mock private BorrowingRepository borrowingRepository;
+    @Mock private AuditService auditService;
     @InjectMocks private BookService bookService;
+
+    @BeforeEach
+    void injectAuditService() { bookService.setAuditService(auditService); }
 
     @Test
     void updateBookPreservesCopiesCurrentlyBorrowed() {
@@ -54,6 +59,7 @@ class BookServiceTest {
         assertEquals(9, updated.getAvailableCopies());
         assertEquals(12, updated.getTotalCopies());
         assertEquals("9780000000002", updated.getIsbn());
+        verify(auditService).record(eq("UPDATE"), eq("BOOK"), eq(7L), anyString(), anyString());
     }
 
     @Test

@@ -8,9 +8,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.time.LocalDateTime;
 
 @Repository
 public interface BorrowingRepository extends JpaRepository<BorrowingRecord, Long> {
@@ -26,14 +26,33 @@ public interface BorrowingRepository extends JpaRepository<BorrowingRecord, Long
     @Query("SELECT br FROM BorrowingRecord br WHERE br.status = 'BORROWED' AND br.dueDate < CURRENT_TIMESTAMP")
     List<BorrowingRecord> findOverdueBorrowings();
 
+    /**
+     * Report query with an exclusive upper timestamp. Callers convert an inclusive
+     * end date to the start of the following day, preserving all end-date records.
+     * Fetch joins keep the report and CSV export free from association N+1 queries.
+     */
+    @Query("""
+        SELECT br FROM BorrowingRecord br
+        JOIN FETCH br.book b
+        JOIN FETCH br.member m
+        WHERE (:startInclusive IS NULL OR br.borrowDate >= :startInclusive)
+          AND (:endExclusive IS NULL OR br.borrowDate < :endExclusive)
+          AND (:category IS NULL OR :category = '' OR LOWER(b.category) = LOWER(:category))
+          AND (:status IS NULL OR br.status = :status)
+        ORDER BY br.borrowDate DESC, br.id DESC
+        """)
+    List<BorrowingRecord> findReportBorrowings(
+            @Param("startInclusive") LocalDateTime startInclusive,
+            @Param("endExclusive") LocalDateTime endExclusive,
+            @Param("category") String category,
+            @Param("status") BorrowingRecord.BorrowStatus status);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT br FROM BorrowingRecord br WHERE br.id = :id")
     Optional<BorrowingRecord> findByIdForUpdate(@Param("id") Long id);
 
     long countByStatus(BorrowingRecord.BorrowStatus status);
-
     boolean existsByMemberId(Long memberId);
-
     boolean existsByBookId(Long bookId);
 
     @Query("SELECT COUNT(br) FROM BorrowingRecord br WHERE br.status = 'BORROWED' AND br.dueDate < CURRENT_TIMESTAMP")

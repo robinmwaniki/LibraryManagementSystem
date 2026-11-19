@@ -114,3 +114,122 @@ To reproduce the deployment smoke test locally:
 6. Stop the stack with `docker compose down`.
 
 Do not commit the local `.env` file or real credentials.
+
+
+## Fine assessment, payments and adjustments
+
+The daily fine rate and optional maximum fine are configured from the authenticated **Settings** page. The rate is applied to calendar days after the due date; returning on the due date is not late. The original assessed fine remains on the borrowing record. Payments and signed adjustments are stored as separate ledger rows with timestamps and the authenticated administrator's username.
+
+- A payment must be positive and cannot exceed the outstanding balance.
+- A fine adjustment must be non-zero and include a reason. Positive values add a charge; negative values record a waiver/reduction.
+- An adjustment cannot reduce the fine below zero or below amounts already paid.
+- Payment and adjustment history is retained; no ledger entries are overwritten or deleted by the application.
+- Member directory rows display the outstanding fine balance.
+
+Administrative API examples (authenticated administrator):
+
+```http
+POST /api/fines/42/payments
+Content-Type: application/json
+
+{"amount": 50.00, "reference": "RECEIPT-2026-0042"}
+```
+
+```http
+POST /api/fines/42/adjustments
+Content-Type: application/json
+
+{"amount": -10.00, "reason": "Approved partial waiver"}
+```
+
+Read the current balance and ledger history with `GET /api/fines/42/balance`, `GET /api/fines/42/payments`, and `GET /api/fines/42/adjustments`. A member's aggregate outstanding balance is available at `GET /api/fines/members/7/balance`. Fine ledger endpoints require the ADMIN role.
+
+
+## Reporting filters and CSV exports
+
+The reports page supports optional inclusive start and end dates, exact book category, and borrowing status (`BORROWED` or `RETURNED`). The end date is converted to midnight at the start of the following day and used as an exclusive upper bound, so all records on the selected end date are included. A start date later than the end date displays a validation error and returns no report rows. CSV export uses the same filters and date semantics.
+
+Filtered reporting includes borrowing activity, overdue counts within the result set, recorded fines, the most-borrowed titles, and the most active members. The existing unfiltered overdue-loans CSV remains available at `/reports/overdue.csv`.
+
+CSV text fields are quoted and embedded quotes are doubled. Text beginning with spreadsheet formula initiators (`=`, `+`, `-`, `@`, tab, carriage return, or line feed) is prefixed with an apostrophe to reduce CSV formula-injection risk. `ReportControllerTest` covers inclusive end-date handling, invalid ranges, export filtering, and formula-injection mitigation.
+
+Example requests:
+
+```http
+GET /reports?startDate=2026-11-01&endDate=2026-11-30&category=Technology&status=RETURNED
+GET /reports/export.csv?startDate=2026-11-01&endDate=2026-11-30&category=Technology&status=RETURNED
+```
+
+
+## Audit history
+
+Important catalogue, member, circulation, and fine-ledger operations write an audit entry in the same database transaction as the business change. Entries include the authenticated actor (or `system` for unauthenticated scheduled/system work), action, record type and ID, timestamp, and concise before/after summaries. Member summaries intentionally omit names, email addresses, phone numbers, and postal addresses; fine summaries omit payment references and adjustment reasons. Credential-like values are redacted before persistence.
+
+Audit history is available to administrators at `/audit`. Filters include inclusive date range, actor username, action, record type, and record ID. Results are newest first and paginated. The audit repository exposes only insert and search operations; the application does not provide audit edit or delete actions. The Liquibase migration creates indexes for time, actor/action, and record lookups.
+
+`AuditServiceTest` verifies actor attribution and secret redaction. `AuditControllerTest` verifies search filters and inclusive end-date handling. Service tests verify that book updates, member registration, borrowing, and fine payments emit audit events. `SecurityIntegrationTest` verifies that the audit screen redirects anonymous users to sign-in and is available to the configured administrator. The PostgreSQL integration test verifies the audit table and migration count.
+
+
+## PostgreSQL backup and restore verification
+
+The Docker Compose database service is named postgres. The backup script runs pg_dump in custom archive format against the live database; it does not stop the application. It writes to a temporary file with restrictive permissions, validates the archive with pg_restore --list, and only then publishes the final dump.
+
+```bash
+bash scripts/backup-postgres.sh
+bash scripts/backup-postgres.sh backups/before-release.dump
+bash scripts/restore-postgres.sh backups/before-release.dump library_restore_check
+bash scripts/restore-postgres.sh backups/before-release.dump
+```
+
+The restore script requires an existing backup file, validates the archive, validates the target database identifier, creates the target database when absent, and restores with --clean --if-exists --single-transaction --exit-on-error. By default the target is the configured application database; the script requires the operator to type RESTORE before proceeding. Use a separate target database first when validating a recovery. Restoring to the configured live database replaces objects from the archive and should only be done after writes have been stopped or the application has been put into maintenance mode.
+
+The CI smoke test inserts a known book, member, and borrowing record, takes a backup while the database remains online, restores into a separate clean database, and verifies all three record types. The smoke test runs after the Docker Compose health check.
+
+### Recovery checklist
+
+1. Identify the required recovery point and select a verified backup from protected storage.
+2. Confirm the target PostgreSQL version and available disk space.
+3. Keep the application in maintenance mode or stop application writes.
+4. Restore into a clean, isolated database first and validate books, members, borrowing records, fine ledger, audit history, and Liquibase metadata.
+5. Update the application database connection only after verification; restart and check /actuator/health.
+6. Validate sign-in, catalogue search, member records, circulation, and reports before reopening traffic.
+7. Retain the pre-restore database snapshot until recovery is accepted.
+
+Backup files contain library and member records and must be treated as sensitive data. Store them outside the repository, restrict access, encrypt them at rest and during transfer, and maintain an off-host/off-site copy. Do not include credentials or .env files in backups or commit dump files. The Docker named volume postgres_data is persistent storage, not a backup: deleting the volume or losing the Docker host can destroy the data.
+
+
+## Sentry, structured logging, and telemetry privacy
+
+The application uses the Jakarta Spring Boot Sentry starter and Logstash Logback JSON encoder. Sentry is disabled when SENTRY_DSN is blank; local development, tests, and deployments do not require an external Sentry account. Configure DSN, environment, release, and sample rates through environment variables only.
+
+Privacy controls:
+- Sentry default PII collection is disabled and request-body capture is set to none.
+- The before-send callback removes request and user context and all breadcrumbs.
+- Free-form event and exception messages are redacted; exception class and stack frames remain for diagnosis.
+- Do not place credentials, session IDs, member names/contact details, borrowing notes, payment references, or fine adjustment reasons in log messages, tags, extras, or custom contexts.
+- Do not enable Sentry log forwarding or performance tracing by default. Trace sample rate defaults to zero.
+- Keep DSNs and deployment secrets in environment settings or a secrets manager; do not commit them.
+
+Every HTTP request has an X-Correlation-ID. A caller-supplied value is accepted only when it matches the restricted 1–64 character allow-list; otherwise a UUID is generated. The value is returned in the response, placed in MDC during request processing, and emitted in structured JSON logs. MDC is cleared after the request to prevent thread-pool leakage.
+
+Actuator exposes health, info, metrics, and Prometheus metrics. Only /actuator/health is public; details are hidden unless the caller is authenticated. The remaining actuator endpoints require authentication. Database health details are never shown to anonymous callers.
+
+The controlled Sentry test endpoint is disabled unless LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=true. When temporarily enabled, only an administrator can POST to /api/diagnostics/sentry-test. The endpoint emits a generic test exception and returns the Sentry event ID. Disable the flag again after confirming delivery. It is not intended as a permanent public endpoint.
+
+Tests cover correlation ID validation and cleanup, Sentry event scrubbing, DSN-absent behavior, diagnostic event capture delegation, and administrator-only diagnostic access. The application-context test also verifies that Sentry is optional when no DSN is configured.
+
+
+## Catalogue caching and concurrent circulation verification
+
+The application uses two bounded local Caffeine caches:
+
+| Cache | Key | Bound | Write TTL | Invalidation |
+| --- | --- | --- | --- | --- |
+| catalogueSearch | Normalized search term, category, available-only flag, and Spring Data Pageable (page, size, sort) | 500 keys | 2 minutes | Book create/update/delete; borrow/return; reservation creation, cancellation, collection, FIFO allocation, and expiry |
+| catalogueCategories | Single empty key | 1 entry | 10 minutes | Book create/update/delete |
+
+The cache is process-local and intentionally does not participate in stock or loan-limit decisions. A multi-instance deployment may have short-lived differences in read-only search pages until TTL expiry; every process still validates inventory against PostgreSQL. Redis/distributed locks are intentionally not introduced without measured need. Cache hit/miss/eviction metrics are exposed by the authenticated Actuator metrics endpoint.
+
+PostgreSQL serializes circulation mutations with pessimistic row locks. Borrowing locks book then member before checking available stock and active loans. Return and renewal lock the borrowing row; return then locks the book before incrementing stock. Reservation operations lock the book before reservation rows; expiry processes distinct book IDs in sorted order to reduce deadlock risk. Member-level limits are serialized with the member row lock before the active-loan count query. A database CHECK constraint enforces non-negative total copies and available copies, and prevents available copies from exceeding total copies. Service methods are transactional, so stock and borrowing record changes commit or roll back together.
+
+Concurrent requests that lose the lock race re-read the committed state and receive the existing domain conflict (for example, no copies available, already returned, or already renewed). They are not silently retried. PostgreSQL integration tests run two simultaneous operations and verify that only one of two last-copy borrows, duplicate returns, or duplicate renewals succeeds. The cache integration test verifies cache hits and that book mutations evict both search and category results.

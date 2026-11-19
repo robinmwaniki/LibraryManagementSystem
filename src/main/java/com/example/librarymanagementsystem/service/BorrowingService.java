@@ -8,9 +8,13 @@ import com.example.librarymanagementsystem.repository.BookRepository;
 import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import com.example.librarymanagementsystem.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -24,7 +28,12 @@ public class BorrowingService {
     private final MemberRepository memberRepository;
     private final LibrarySettingsService librarySettingsService;
     private final ReservationService reservationService;
+    private AuditService auditService;
 
+    @Autowired(required = false)
+    public void setAuditService(AuditService auditService) { this.auditService = auditService; }
+
+    @CacheEvict(cacheNames = "catalogueSearch", allEntries = true)
     public BorrowingRecord borrowBook(Long bookId, Long memberId) {
         Book book = bookRepository.findByIdForUpdate(bookId)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found"));
@@ -55,7 +64,9 @@ public class BorrowingService {
 
         book.setAvailableCopies(book.getAvailableCopies() - 1);
         bookRepository.save(book);
-        return borrowingRepository.save(record);
+        BorrowingRecord saved = borrowingRepository.save(record);
+        audit("BORROW", saved.getId(), null, borrowingSummary(saved));
+        return saved;
     }
 
     public BorrowingRecord renewBook(Long borrowingId) {
@@ -65,6 +76,7 @@ public class BorrowingService {
         if (record.getStatus() != BorrowingRecord.BorrowStatus.BORROWED) {
             throw new IllegalStateException("Only active loans can be renewed.");
         }
+        String before = borrowingSummary(record);
         LocalDateTime now = LocalDateTime.now();
         if (record.getDueDate() == null || record.getDueDate().isBefore(now)) {
             throw new IllegalStateException("Overdue loans cannot be renewed. Return the book and settle any applicable fine.");
@@ -77,9 +89,12 @@ public class BorrowingService {
         int loanPeriodDays = librarySettingsService.getSettings().getLoanPeriodDays();
         record.setDueDate(record.getDueDate().plusDays(loanPeriodDays));
         record.setRenewalCount(renewalCount + 1);
-        return borrowingRepository.save(record);
+        BorrowingRecord saved = borrowingRepository.save(record);
+        audit("RENEW", saved.getId(), before, borrowingSummary(saved));
+        return saved;
     }
 
+    @CacheEvict(cacheNames = "catalogueSearch", allEntries = true)
     public BorrowingRecord returnBook(Long borrowingId) {
         BorrowingRecord record = borrowingRepository.findByIdForUpdate(borrowingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Borrowing record not found"));
@@ -88,6 +103,7 @@ public class BorrowingService {
             throw new IllegalStateException("Book has already been returned.");
         }
 
+        String before = borrowingSummary(record);
         LocalDateTime returnedAt = LocalDateTime.now();
         record.setReturnDate(returnedAt);
         record.setStatus(BorrowingRecord.BorrowStatus.RETURNED);
@@ -95,11 +111,15 @@ public class BorrowingService {
         if (record.getDueDate() != null && returnedAt.toLocalDate().isAfter(record.getDueDate().toLocalDate())) {
             long daysLate = ChronoUnit.DAYS.between(record.getDueDate().toLocalDate(), returnedAt.toLocalDate());
             var settings = librarySettingsService.getSettings();
-            double fine = daysLate * settings.getFinePerDay();
+            // Use decimal arithmetic and currency rounding to avoid binary floating-point
+            // artifacts in the amount stored as the original assessed fine.
+            BigDecimal fine = BigDecimal.valueOf(settings.getFinePerDay())
+                    .multiply(BigDecimal.valueOf(daysLate))
+                    .setScale(2, RoundingMode.HALF_UP);
             if (settings.getMaxFine() != null) {
-                fine = Math.min(fine, settings.getMaxFine());
+                fine = fine.min(BigDecimal.valueOf(settings.getMaxFine()).setScale(2, RoundingMode.HALF_UP));
             }
-            record.setFine(fine);
+            record.setFine(fine.doubleValue());
         } else {
             record.setFine(0.0);
         }
@@ -116,7 +136,20 @@ public class BorrowingService {
 
         // A returned copy is offered to the oldest waiting reservation before public availability.
         reservationService.allocateWaitingReservations(book.getId());
-        return borrowingRepository.save(record);
+        BorrowingRecord saved = borrowingRepository.save(record);
+        audit("RETURN", saved.getId(), before, borrowingSummary(saved));
+        return saved;
+    }
+
+    private void audit(String action, Long id, String before, String after) {
+        if (auditService != null) auditService.record(action, "BORROWING", id, before, after);
+    }
+
+    private String borrowingSummary(BorrowingRecord record) {
+        return "bookId=" + (record.getBook() == null ? "unknown" : record.getBook().getId())
+                + ",memberId=" + (record.getMember() == null ? "unknown" : record.getMember().getId())
+                + ",status=" + record.getStatus() + ",dueDate=" + record.getDueDate()
+                + ",fine=" + record.getFine();
     }
 
     @Transactional(readOnly = true)

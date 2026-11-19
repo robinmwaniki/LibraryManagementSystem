@@ -6,6 +6,9 @@ import com.example.librarymanagementsystem.model.Book;
 import com.example.librarymanagementsystem.repository.BookRepository;
 import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +20,12 @@ import java.util.List;
 public class BookService {
     private final BookRepository bookRepository;
     private final BorrowingRepository borrowingRepository;
+    private AuditService auditService;
 
+    @Autowired(required = false)
+    public void setAuditService(AuditService auditService) { this.auditService = auditService; }
+
+    @CacheEvict(cacheNames = {"catalogueSearch", "catalogueCategories"}, allEntries = true)
     public Book addBook(BookDTO bookDTO) {
         String isbn = normalizeIsbn(bookDTO.getIsbn());
         if (bookRepository.existsByIsbn(isbn)) {
@@ -27,7 +35,9 @@ public class BookService {
         mapDTOToBook(bookDTO, book);
         book.setIsbn(isbn);
         book.setAvailableCopies(bookDTO.getTotalCopies());
-        return bookRepository.save(book);
+        Book saved = bookRepository.save(book);
+        audit("CREATE", saved.getId(), null, bookSummary(saved));
+        return saved;
     }
 
     @Transactional(readOnly = true)
@@ -41,6 +51,7 @@ public class BookService {
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
     }
 
+    @CacheEvict(cacheNames = {"catalogueSearch", "catalogueCategories"}, allEntries = true)
     public Book updateBook(Long id, BookDTO bookDTO) {
         Book book = bookRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Book not found with id: " + id));
@@ -50,6 +61,7 @@ public class BookService {
             throw new IllegalArgumentException("Another book already uses this ISBN.");
         }
 
+        String before = bookSummary(book);
         int currentlyBorrowed = safe(book.getTotalCopies()) - safe(book.getAvailableCopies());
         int requestedTotal = safe(bookDTO.getTotalCopies());
         if (requestedTotal < currentlyBorrowed) {
@@ -59,15 +71,20 @@ public class BookService {
         mapDTOToBook(bookDTO, book);
         book.setIsbn(isbn);
         book.setAvailableCopies(requestedTotal - currentlyBorrowed);
-        return bookRepository.save(book);
+        Book saved = bookRepository.save(book);
+        audit("UPDATE", saved.getId(), before, bookSummary(saved));
+        return saved;
     }
 
+    @CacheEvict(cacheNames = {"catalogueSearch", "catalogueCategories"}, allEntries = true)
     public void deleteBook(Long id) {
         Book book = getBookById(id);
         if (borrowingRepository.existsByBookId(id)) {
             throw new IllegalStateException("This book has borrowing history and cannot be deleted. Keep the catalogue record for audit purposes.");
         }
+        String before = bookSummary(book);
         bookRepository.delete(book);
+        audit("DELETE", id, before, null);
     }
 
     @Transactional(readOnly = true)
@@ -91,11 +108,13 @@ public class BookService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "catalogueCategories")
     public List<String> getCategories() {
         return bookRepository.findDistinctCategories();
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(cacheNames = "catalogueSearch")
     public org.springframework.data.domain.Page<Book> searchBooks(String search, String category,
             boolean availableOnly, org.springframework.data.domain.Pageable pageable) {
         String normalizedSearch = search == null || search.isBlank() ? null : search.trim();
@@ -112,6 +131,15 @@ public class BookService {
         book.setCategory(dto.getCategory().trim());
         book.setTotalCopies(dto.getTotalCopies());
         book.setShelfLocation(dto.getShelfLocation());
+    }
+
+    private void audit(String action, Long id, String before, String after) {
+        if (auditService != null) auditService.record(action, "BOOK", id, before, after);
+    }
+
+    private String bookSummary(Book book) {
+        return "title=" + book.getTitle() + ",category=" + book.getCategory()
+                + ",totalCopies=" + safe(book.getTotalCopies()) + ",availableCopies=" + safe(book.getAvailableCopies());
     }
 
     private String normalizeIsbn(String isbn) {
