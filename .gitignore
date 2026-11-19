@@ -16,3 +16,8 @@ target/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Database backups (sensitive operational data)
+/backups/
+*.dump
+*.backup

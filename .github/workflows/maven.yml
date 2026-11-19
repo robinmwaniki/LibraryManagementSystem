@@ -51,6 +51,9 @@ jobs:
           docker compose logs
           exit 1
 
+      - name: Verify PostgreSQL backup and restore
+        run: bash scripts/test-backup-restore.sh
+
       - name: Show Docker Compose logs on failure
         if: failure()
         run: docker compose logs
