@@ -149,7 +149,7 @@ databaseChangeLog:
             columns:
               - column: { name: id, type: BIGINT, autoIncrement: true, constraints: { primaryKey: true, primaryKeyName: pk_fine_payments, nullable: false } }
               - column: { name: borrowing_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fine_payments_borrowing, references: borrowing_records(id) } }
-              - column: { name: amount, type: NUMERIC(12,2), constraints: { nullable: false } }
+              - column: { name: amount, type: "NUMERIC(12,2)", constraints: { nullable: false } }
               - column: { name: paid_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
               - column: { name: recorded_by, type: VARCHAR(120), constraints: { nullable: false } }
               - column: { name: reference, type: VARCHAR(500) }
@@ -164,13 +164,7 @@ databaseChangeLog:
             columns:
               - column: { name: id, type: BIGINT, autoIncrement: true, constraints: { primaryKey: true, primaryKeyName: pk_fine_adjustments, nullable: false } }
               - column: { name: borrowing_id, type: BIGINT, constraints: { nullable: false, foreignKeyName: fk_fine_adjustments_borrowing, references: borrowing_records(id) } }
-              - column: { name: amount, type: NUMERIC(12,2), constraints: { nullable: false } }
+              - column: { name: amount, type: "NUMERIC(12,2)", constraints: { nullable: false } }
               - column: { name: reason, type: VARCHAR(500), constraints: { nullable: false } }
               - column: { name: adjusted_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
               - column: { name: adjusted_by, type: VARCHAR(120), constraints: { nullable: false } }
-        - createIndex:
-            tableName: fine_adjustments
-            indexName: idx_fine_adjustments_borrowing
-            columns:
-              - column: { name: borrowing_id }
-              - column: { name: adjusted_at }
