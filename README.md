@@ -110,3 +110,35 @@ The test profile uses an isolated in-memory H2 database and disables Liquibase; 
 - Authentication is required for management pages and API routes.
 - Spring Security CSRF protection remains enabled.
 - Use HTTPS and a secrets manager for network-accessible deployments.
+
+
+## PostgreSQL backup and restore
+
+The Docker Compose PostgreSQL service supports online custom-format backups. The scripts use the database container's configured credentials without putting passwords on the command line.
+
+Run these commands from the repository root in WSL or Git Bash, with Docker Desktop running and the Compose stack started:
+
+```bash
+# Create a timestamped backup under backups/ (directory is git-ignored).
+bash scripts/backup-postgres.sh
+
+# Or choose an explicit destination.
+bash scripts/backup-postgres.sh backups/pre-deployment.dump
+
+# Restore into a new database without replacing the configured source database.
+bash scripts/restore-postgres.sh backups/pre-deployment.dump library_restore_check
+
+# Restore into the configured database only after reviewing the warning and typing RESTORE.
+bash scripts/restore-postgres.sh backups/pre-deployment.dump
+```
+
+The restore script validates the archive, confirms the destination, creates a missing target database, and uses a single transaction with pg_restore --clean --if-exists. Treat restore as a destructive operation. Stop application writes or place the application in maintenance mode before restoring a live production database, then verify the restored data and application health before reopening traffic.
+
+### Backup protection and recovery
+
+- Backups are not stored in Git. The local backups/ directory and PostgreSQL dump extensions are ignored by Git.
+- Restrict filesystem access, encrypt backup files at rest and in transit, and copy verified backups to a separate protected/off-site storage location.
+- Keep database credentials in the environment/secrets manager. A database dump does not include the .env file, administrator credentials, SMTP credentials, or other deployment secrets.
+- Docker named volumes provide persistence across container recreation; they are not independent backups and do not protect against volume deletion, host failure, ransomware, or operator error.
+- Keep more than one dated backup, define retention and recovery-point objectives, and periodically test restoration into an isolated database.
+- Never commit real database dumps or credentials to the repository.
