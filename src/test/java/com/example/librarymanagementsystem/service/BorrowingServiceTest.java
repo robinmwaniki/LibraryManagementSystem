@@ -7,6 +7,7 @@ import com.example.librarymanagementsystem.model.Member;
 import com.example.librarymanagementsystem.repository.BookRepository;
 import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import com.example.librarymanagementsystem.repository.MemberRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -30,7 +31,11 @@ class BorrowingServiceTest {
     @Mock private MemberRepository memberRepository;
     @Mock private LibrarySettingsService librarySettingsService;
     @Mock private ReservationService reservationService;
+    @Mock private AuditService auditService;
     @InjectMocks private BorrowingService borrowingService;
+
+    @BeforeEach
+    void injectAuditService() { borrowingService.setAuditService(auditService); }
 
     @Test
     void borrowBookDecrementsAvailableStock() {
@@ -54,6 +59,7 @@ class BorrowingServiceTest {
         assertEquals(0, book.getAvailableCopies());
         assertEquals(BorrowingRecord.BorrowStatus.BORROWED, record.getStatus());
         assertNotNull(record.getDueDate());
+        verify(auditService).record(eq("BORROW"), eq("BORROWING"), any(), isNull(), anyString());
     }
 
     @Test

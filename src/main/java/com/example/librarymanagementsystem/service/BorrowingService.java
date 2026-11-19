@@ -8,6 +8,7 @@ import com.example.librarymanagementsystem.repository.BookRepository;
 import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import com.example.librarymanagementsystem.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,10 @@ public class BorrowingService {
     private final MemberRepository memberRepository;
     private final LibrarySettingsService librarySettingsService;
     private final ReservationService reservationService;
+    private AuditService auditService;
+
+    @Autowired(required = false)
+    public void setAuditService(AuditService auditService) { this.auditService = auditService; }
 
     public BorrowingRecord borrowBook(Long bookId, Long memberId) {
         Book book = bookRepository.findByIdForUpdate(bookId)
@@ -57,7 +62,9 @@ public class BorrowingService {
 
         book.setAvailableCopies(book.getAvailableCopies() - 1);
         bookRepository.save(book);
-        return borrowingRepository.save(record);
+        BorrowingRecord saved = borrowingRepository.save(record);
+        audit("BORROW", saved.getId(), null, borrowingSummary(saved));
+        return saved;
     }
 
     public BorrowingRecord renewBook(Long borrowingId) {
@@ -67,6 +74,7 @@ public class BorrowingService {
         if (record.getStatus() != BorrowingRecord.BorrowStatus.BORROWED) {
             throw new IllegalStateException("Only active loans can be renewed.");
         }
+        String before = borrowingSummary(record);
         LocalDateTime now = LocalDateTime.now();
         if (record.getDueDate() == null || record.getDueDate().isBefore(now)) {
             throw new IllegalStateException("Overdue loans cannot be renewed. Return the book and settle any applicable fine.");
@@ -79,7 +87,9 @@ public class BorrowingService {
         int loanPeriodDays = librarySettingsService.getSettings().getLoanPeriodDays();
         record.setDueDate(record.getDueDate().plusDays(loanPeriodDays));
         record.setRenewalCount(renewalCount + 1);
-        return borrowingRepository.save(record);
+        BorrowingRecord saved = borrowingRepository.save(record);
+        audit("RENEW", saved.getId(), before, borrowingSummary(saved));
+        return saved;
     }
 
     public BorrowingRecord returnBook(Long borrowingId) {
@@ -90,6 +100,7 @@ public class BorrowingService {
             throw new IllegalStateException("Book has already been returned.");
         }
 
+        String before = borrowingSummary(record);
         LocalDateTime returnedAt = LocalDateTime.now();
         record.setReturnDate(returnedAt);
         record.setStatus(BorrowingRecord.BorrowStatus.RETURNED);
@@ -122,7 +133,20 @@ public class BorrowingService {
 
         // A returned copy is offered to the oldest waiting reservation before public availability.
         reservationService.allocateWaitingReservations(book.getId());
-        return borrowingRepository.save(record);
+        BorrowingRecord saved = borrowingRepository.save(record);
+        audit("RETURN", saved.getId(), before, borrowingSummary(saved));
+        return saved;
+    }
+
+    private void audit(String action, Long id, String before, String after) {
+        if (auditService != null) auditService.record(action, "BORROWING", id, before, after);
+    }
+
+    private String borrowingSummary(BorrowingRecord record) {
+        return "bookId=" + (record.getBook() == null ? "unknown" : record.getBook().getId())
+                + ",memberId=" + (record.getMember() == null ? "unknown" : record.getMember().getId())
+                + ",status=" + record.getStatus() + ",dueDate=" + record.getDueDate()
+                + ",fine=" + record.getFine();
     }
 
     @Transactional(readOnly = true)

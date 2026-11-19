@@ -16,6 +16,10 @@ public class FineLedgerService {
     private final BorrowingRepository borrowingRepository;
     private final FinePaymentRepository paymentRepository;
     private final FineAdjustmentRepository adjustmentRepository;
+    private AuditService auditService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setAuditService(AuditService auditService) { this.auditService = auditService; }
 
     public FinePayment recordPayment(Long borrowingId, BigDecimal amount, String reference, String actor) {
         BorrowingRecord loan = lockLoan(borrowingId);
@@ -27,7 +31,10 @@ public class FineLedgerService {
         FinePayment receipt = new FinePayment();
         receipt.setBorrowing(loan); receipt.setAmount(payment); receipt.setRecordedBy(actor);
         receipt.setReference(reference == null || reference.isBlank() ? null : reference.trim());
-        return paymentRepository.save(receipt);
+        FinePayment saved = paymentRepository.save(receipt);
+        if (auditService != null) auditService.record("FINE_PAYMENT", "FINE", borrowingId,
+                "outstanding=" + outstanding, "outstanding=" + outstanding.subtract(payment));
+        return saved;
     }
 
     public FineAdjustment adjustFine(Long borrowingId, BigDecimal amount, String reason, String actor) {
@@ -39,10 +46,14 @@ public class FineLedgerService {
         BigDecimal paid = paymentRepository.sumByBorrowingId(borrowingId);
         if (revisedFine.signum() < 0 || revisedFine.compareTo(paid) < 0)
             throw new IllegalArgumentException("Adjustment cannot reduce the fine below zero or below the amount already paid.");
+        BigDecimal outstandingBefore = revisedFine.subtract(paid).max(BigDecimal.ZERO);
         FineAdjustment entry = new FineAdjustment();
         entry.setBorrowing(loan); entry.setAmount(adjustment);
         entry.setReason(reason.trim()); entry.setAdjustedBy(actor);
-        return adjustmentRepository.save(entry);
+        FineAdjustment saved = adjustmentRepository.save(entry);
+        if (auditService != null) auditService.record("FINE_ADJUSTMENT", "FINE", borrowingId,
+                "outstanding=" + outstandingBefore, "outstanding=" + outstandingBefore.add(adjustment));
+        return saved;
     }
 
     @Transactional(readOnly = true)

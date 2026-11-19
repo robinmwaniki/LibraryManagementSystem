@@ -6,6 +6,7 @@ import com.example.librarymanagementsystem.model.FinePayment;
 import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import com.example.librarymanagementsystem.repository.FineAdjustmentRepository;
 import com.example.librarymanagementsystem.repository.FinePaymentRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,7 +23,11 @@ class FineLedgerServiceTest {
     @Mock private BorrowingRepository borrowingRepository;
     @Mock private FinePaymentRepository paymentRepository;
     @Mock private FineAdjustmentRepository adjustmentRepository;
+    @Mock private AuditService auditService;
     @InjectMocks private FineLedgerService fineLedgerService;
+
+    @BeforeEach
+    void injectAuditService() { fineLedgerService.setAuditService(auditService); }
 
     @Test
     void recordsPartialPaymentWithoutChangingAssessedFine() {
@@ -38,6 +43,7 @@ class FineLedgerServiceTest {
         assertEquals("admin", payment.getRecordedBy());
         assertEquals("RCPT-1", payment.getReference());
         assertEquals(100.0, loan.getFine());
+        verify(auditService).record(eq("FINE_PAYMENT"), eq("FINE"), eq(12L), anyString(), anyString());
     }
 
     @Test

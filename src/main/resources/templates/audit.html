@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit history | Library Management</title>
+<link rel="stylesheet" th:href="@{/webjars/bootstrap/5.3.2/css/bootstrap.min.css}">
+<link rel="stylesheet" th:href="@{/css/style.css}"></head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark"><div class="container">
+<a class="navbar-brand" th:href="@{/}">Library Management</a>
+<div class="ms-auto d-flex align-items-center gap-3"><a class="nav-link" th:href="@{/}">Dashboard</a><a class="nav-link" th:href="@{/books}">Books</a><a class="nav-link" th:href="@{/reports}">Reports</a><form th:action="@{/logout}" method="post"><button class="btn btn-outline-light btn-sm" type="submit">Sign out</button></form></div>
+</div></nav>
+<main class="container py-4 py-lg-5">
+<div class="mb-4"><p class="small text-uppercase fw-semibold text-secondary mb-1">Administration</p><h1 class="h3 mb-1">Audit history</h1><p class="text-secondary mb-0">Read-only record of important library operations.</p></div>
+<div th:if="${invalidRange}" class="alert alert-danger">The start date must be on or before the end date.</div>
+<section class="card border-0 shadow-sm mb-4"><div class="card-body">
+<form method="get" th:action="@{/audit}" class="row g-3 align-items-end">
+<div class="col-sm-6 col-lg-2"><label for="startDate" class="form-label">From</label><input id="startDate" name="startDate" type="date" class="form-control" th:value="${startDate}"></div>
+<div class="col-sm-6 col-lg-2"><label for="endDate" class="form-label">To</label><input id="endDate" name="endDate" type="date" class="form-control" th:value="${endDate}"></div>
+<div class="col-sm-6 col-lg-2"><label for="actor" class="form-label">Actor</label><input id="actor" name="actor" class="form-control" th:value="${actor}" placeholder="Username"></div>
+<div class="col-sm-6 col-lg-2"><label for="action" class="form-label">Action</label><select id="action" name="action" class="form-select"><option value="">All actions</option><option th:each="item : ${actions}" th:value="${item}" th:text="${item}" th:selected="${item == action}"></option></select></div>
+<div class="col-sm-6 col-lg-2"><label for="entityType" class="form-label">Record type</label><select id="entityType" name="entityType" class="form-select"><option value="">All types</option><option th:each="item : ${entityTypes}" th:value="${item}" th:text="${item}" th:selected="${item == entityType}"></option></select></div>
+<div class="col-sm-6 col-lg-2"><label for="entityId" class="form-label">Record ID</label><input id="entityId" name="entityId" class="form-control" th:value="${entityId}"></div>
+<div class="col-12 d-flex gap-2"><button class="btn btn-dark" type="submit">Search history</button><a class="btn btn-outline-secondary" th:href="@{/audit}">Reset</a></div>
+</form></div></section>
+<section class="card border-0 shadow-sm"><div class="card-body">
+<div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h6 mb-0">Recorded events</h2><span class="small text-secondary" th:text="${entries.totalElements + ' events'}">0 events</span></div>
+<div class="table-responsive" th:if="${entries.hasContent()}"><table class="table align-middle">
+<thead><tr><th>Timestamp</th><th>Actor</th><th>Action</th><th>Record</th><th>Before</th><th>After</th></tr></thead>
+<tbody><tr th:each="entry : ${entries.content}"><td class="text-nowrap" th:text="${#temporals.format(entry.occurredAt, 'dd MMM yyyy HH:mm:ss')}">Date</td><td th:text="${entry.actor}">Actor</td><td><span class="badge text-bg-light border" th:text="${entry.action}">UPDATE</span></td><td th:text="${entry.entityType + ' #' + entry.entityId}">BOOK #1</td><td class="small" th:text="${entry.beforeSummary} ?: '—'">Before</td><td class="small" th:text="${entry.afterSummary} ?: '—'">After</td></tr></tbody></table></div>
+<div class="text-center py-5 text-secondary" th:if="${!entries.hasContent()}">No audit events match these filters.</div>
+<nav th:if="${entries.totalPages > 1}" class="d-flex justify-content-between align-items-center mt-3"><span class="small text-secondary" th:text="${'Page ' + (entries.number + 1) + ' of ' + entries.totalPages}">Page 1</span><ul class="pagination pagination-sm mb-0"><li class="page-item" th:classappend="${entries.first} ? 'disabled'"><a class="page-link" th:href="@{/audit(page=${entries.number - 1},size=${pageSize},startDate=${startDate},endDate=${endDate},actor=${actor},action=${action},entityType=${entityType},entityId=${entityId})}">Previous</a></li><li class="page-item" th:classappend="${entries.last} ? 'disabled'"><a class="page-link" th:href="@{/audit(page=${entries.number + 1},size=${pageSize},startDate=${startDate},endDate=${endDate},actor=${actor},action=${action},entityType=${entityType},entityId=${entityId})}">Next</a></li></ul></nav>
+</div></section></main>
+<script th:src="@{/webjars/bootstrap/5.3.2/js/bootstrap.bundle.min.js}"></script></body></html>

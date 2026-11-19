@@ -35,6 +35,7 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> auth
                     .requestMatchers("/login", "/css/**", "/js/**", "/images/**",
                             "/webjars/**", "/actuator/health").permitAll()
+                    .requestMatchers("/audit/**", "/api/audit/**").hasRole("ADMIN")
                     .anyRequest().authenticated())
                 .formLogin(form -> form.loginPage("/login").defaultSuccessUrl("/", true).permitAll())
                 .logout(logout -> logout.logoutSuccessUrl("/login?logout")

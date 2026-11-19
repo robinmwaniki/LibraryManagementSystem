@@ -168,3 +168,36 @@ databaseChangeLog:
               - column: { name: reason, type: VARCHAR(500), constraints: { nullable: false } }
               - column: { name: adjusted_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
               - column: { name: adjusted_by, type: VARCHAR(120), constraints: { nullable: false } }
+
+  - changeSet:
+      id: 007-create-audit-logs
+      author: robinmwaniki
+      changes:
+        - createTable:
+            tableName: audit_logs
+            columns:
+              - column: { name: id, type: BIGINT, autoIncrement: true, constraints: { primaryKey: true, primaryKeyName: pk_audit_logs, nullable: false } }
+              - column: { name: actor, type: VARCHAR(120), constraints: { nullable: false } }
+              - column: { name: action, type: VARCHAR(80), constraints: { nullable: false } }
+              - column: { name: entity_type, type: VARCHAR(80), constraints: { nullable: false } }
+              - column: { name: entity_id, type: VARCHAR(100), constraints: { nullable: false } }
+              - column: { name: before_summary, type: VARCHAR(1000) }
+              - column: { name: after_summary, type: VARCHAR(1000) }
+              - column: { name: occurred_at, type: TIMESTAMP, defaultValueComputed: CURRENT_TIMESTAMP, constraints: { nullable: false } }
+        - createIndex:
+            tableName: audit_logs
+            indexName: idx_audit_occurred_at
+            columns:
+              - column: { name: occurred_at }
+        - createIndex:
+            tableName: audit_logs
+            indexName: idx_audit_actor_action
+            columns:
+              - column: { name: actor }
+              - column: { name: action }
+        - createIndex:
+            tableName: audit_logs
+            indexName: idx_audit_entity
+            columns:
+              - column: { name: entity_type }
+              - column: { name: entity_id }
