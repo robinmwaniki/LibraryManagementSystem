@@ -214,4 +214,3 @@ databaseChangeLog:
             columnDataType: INT
         - sql:
             sql: ALTER TABLE books ADD CONSTRAINT ck_books_copy_counts CHECK (total_copies >= 0 AND available_copies >= 0 AND available_copies <= total_copies)
-            rollback: ALTER TABLE books DROP CONSTRAINT ck_books_copy_counts
