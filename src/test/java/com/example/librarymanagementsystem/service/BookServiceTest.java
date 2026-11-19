@@ -25,6 +25,7 @@ import static org.mockito.Mockito.*;
 class BookServiceTest {
     @Mock private BookRepository bookRepository;
     @Mock private BorrowingRepository borrowingRepository;
+    @Mock private AuditService auditService;
     @InjectMocks private BookService bookService;
 
     @Test
@@ -54,6 +55,7 @@ class BookServiceTest {
         assertEquals(9, updated.getAvailableCopies());
         assertEquals(12, updated.getTotalCopies());
         assertEquals("9780000000002", updated.getIsbn());
+        verify(auditService).record(eq("UPDATE"), eq("BOOK"), eq(7L), anyString(), anyString());
     }
 
     @Test
