@@ -4,7 +4,7 @@ import com.example.librarymanagementsystem.model.AuditLog;
 import com.example.librarymanagementsystem.repository.AuditLogRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,7 +21,7 @@ class AuditServiceTest {
         AuditLogRepository repository = mock(AuditLogRepository.class);
         when(repository.save(any(AuditLog.class))).thenAnswer(call -> call.getArgument(0));
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("library-admin", "not-for-audit"));
+                new TestingAuthenticationToken("library-admin", "not-for-audit", "ROLE_ADMIN"));
         AuditService service = new AuditService(repository);
 
         AuditLog saved = service.record("UPDATE", "BOOK", 15L,
