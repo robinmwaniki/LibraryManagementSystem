@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -95,11 +97,15 @@ public class BorrowingService {
         if (record.getDueDate() != null && returnedAt.toLocalDate().isAfter(record.getDueDate().toLocalDate())) {
             long daysLate = ChronoUnit.DAYS.between(record.getDueDate().toLocalDate(), returnedAt.toLocalDate());
             var settings = librarySettingsService.getSettings();
-            double fine = daysLate * settings.getFinePerDay();
+            // Use decimal arithmetic and currency rounding to avoid binary floating-point
+            // artifacts in the amount stored as the original assessed fine.
+            BigDecimal fine = BigDecimal.valueOf(settings.getFinePerDay())
+                    .multiply(BigDecimal.valueOf(daysLate))
+                    .setScale(2, RoundingMode.HALF_UP);
             if (settings.getMaxFine() != null) {
-                fine = Math.min(fine, settings.getMaxFine());
+                fine = fine.min(BigDecimal.valueOf(settings.getMaxFine()).setScale(2, RoundingMode.HALF_UP));
             }
-            record.setFine(fine);
+            record.setFine(fine.doubleValue());
         } else {
             record.setFine(0.0);
         }

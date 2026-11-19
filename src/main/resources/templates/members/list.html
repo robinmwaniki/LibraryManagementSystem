@@ -20,9 +20,9 @@
 <div class="col-md-2 d-flex gap-2"><button class="btn btn-dark" type="submit">Filter</button><a th:href="@{/members}" class="btn btn-outline-secondary">Reset</a></div></form></div></section>
 <section class="card"><div class="card-body">
 <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h6 mb-0">Member records</h2><span class="small text-secondary" th:text="${members.totalElements + ' members · Page ' + (members.totalPages == 0 ? 0 : members.number + 1) + ' of ' + members.totalPages}">0 members</span></div>
-<div class="table-responsive" th:if="${members.hasContent()}"><table class="table align-middle"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Loan limit</th><th class="text-end">Actions</th></tr></thead>
+<div class="table-responsive" th:if="${members.hasContent()}"><table class="table align-middle"><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Status</th><th>Loan limit</th><th>Outstanding fines</th><th class="text-end">Actions</th></tr></thead>
 <tbody><tr th:each="member : ${members.content}"><td class="fw-semibold" th:text="${member.firstName + ' ' + member.lastName}">Name</td><td th:text="${member.email}">Email</td><td th:text="${member.phone}">Phone</td>
-<td><span class="badge text-bg-light border" th:text="${member.status}">ACTIVE</span></td><td th:text="${member.maxBooksAllowed}">5</td><td class="text-end text-nowrap">
+<td><span class="badge text-bg-light border" th:text="${member.status}">ACTIVE</span></td><td th:text="${member.maxBooksAllowed}">5</td><td class="text-nowrap">KES <span th:text="${#numbers.formatDecimal(outstandingBalances[member.id], 1, 2)}">0.00</span></td><td class="text-end text-nowrap">
 <a class="btn btn-sm btn-outline-secondary" th:href="@{/members/edit/{id}(id=${member.id})}">Edit</a>
 <form class="d-inline" method="post" th:action="@{/members/delete/{id}(id=${member.id})}" onsubmit="return confirm('Delete this member?')"><button class="btn btn-sm btn-outline-danger" type="submit">Delete</button></form>
 </td></tr></tbody></table></div>

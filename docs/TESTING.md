@@ -114,3 +114,32 @@ To reproduce the deployment smoke test locally:
 6. Stop the stack with `docker compose down`.
 
 Do not commit the local `.env` file or real credentials.
+
+
+## Fine assessment, payments and adjustments
+
+The daily fine rate and optional maximum fine are configured from the authenticated **Settings** page. The rate is applied to calendar days after the due date; returning on the due date is not late. The original assessed fine remains on the borrowing record. Payments and signed adjustments are stored as separate ledger rows with timestamps and the authenticated administrator's username.
+
+- A payment must be positive and cannot exceed the outstanding balance.
+- A fine adjustment must be non-zero and include a reason. Positive values add a charge; negative values record a waiver/reduction.
+- An adjustment cannot reduce the fine below zero or below amounts already paid.
+- Payment and adjustment history is retained; no ledger entries are overwritten or deleted by the application.
+- Member directory rows display the outstanding fine balance.
+
+Administrative API examples (authenticated administrator):
+
+```http
+POST /api/fines/42/payments
+Content-Type: application/json
+
+{"amount": 50.00, "reference": "RECEIPT-2026-0042"}
+```
+
+```http
+POST /api/fines/42/adjustments
+Content-Type: application/json
+
+{"amount": -10.00, "reason": "Approved partial waiver"}
+```
+
+Read the current balance and ledger history with `GET /api/fines/42/balance`, `GET /api/fines/42/payments`, and `GET /api/fines/42/adjustments`. A member's aggregate outstanding balance is available at `GET /api/fines/members/7/balance`. Fine ledger endpoints require the ADMIN role.
