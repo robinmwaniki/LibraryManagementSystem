@@ -12,6 +12,7 @@ import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import com.example.librarymanagementsystem.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +36,7 @@ public class ReservationService {
     @Value("${library.reservations.expiry-days:3}")
     private int expiryDays;
 
+    @CacheEvict(cacheNames = "catalogueSearch", allEntries = true)
     public BookReservation reserveBook(Long bookId, Long memberId) {
         // Expire old holds before taking a title lock. This prevents a transaction
         // holding book A from trying to lock book B while another transaction does the reverse.
@@ -71,6 +73,7 @@ public class ReservationService {
         return reservationRepository.save(reservation);
     }
 
+    @CacheEvict(cacheNames = "catalogueSearch", allEntries = true)
     public BookReservation cancelReservation(Long reservationId, Long memberId) {
         BookReservation snapshot = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));
@@ -96,6 +99,7 @@ public class ReservationService {
         return reservation;
     }
 
+    @CacheEvict(cacheNames = "catalogueSearch", allEntries = true)
     public BookReservation collectReservation(Long reservationId) {
         BookReservation snapshot = reservationRepository.findById(reservationId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reservation not found"));
@@ -159,6 +163,7 @@ public class ReservationService {
      * Reserves available copies for the oldest waiting members in deterministic FIFO order.
      * The caller must serialize this operation by locking the corresponding book row.
      */
+    @CacheEvict(cacheNames = "catalogueSearch", allEntries = true)
     public void allocateWaitingReservations(Long bookId) {
         Book book = lockBook(bookId);
         boolean inventoryChanged = false;
@@ -184,6 +189,7 @@ public class ReservationService {
      * The book row is always locked before a reservation row to keep lock order consistent.
      */
     @Scheduled(cron = "${library.reservations.expiry-check-cron:0 0 * * * *}")
+    @CacheEvict(cacheNames = "catalogueSearch", allEntries = true)
     public void expireReservations() {
         LocalDateTime now = LocalDateTime.now();
         List<BookReservation> expiredCandidates = reservationRepository
