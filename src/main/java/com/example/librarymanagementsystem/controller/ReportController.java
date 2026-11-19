@@ -24,6 +24,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Controller
@@ -87,7 +88,6 @@ public class ReportController {
         model.addAttribute("activeMembers", memberRepository.countByStatus(
                 com.example.librarymanagementsystem.model.Member.MembershipStatus.ACTIVE));
         model.addAttribute("activeLoans", borrowingRepository.countByStatus(BorrowingRecord.BorrowStatus.BORROWED));
-        model.addAttribute("overdueLoans", invalidRange ? java.util.List.of() : borrowingService.getOverdueBorrowings());
         model.addAttribute("overdueCount", records.stream().filter(this::isOverdue).count());
         model.addAttribute("recordedFines", records.stream().map(BorrowingRecord::getFine)
                 .filter(Objects::nonNull).map(BigDecimal::valueOf)
