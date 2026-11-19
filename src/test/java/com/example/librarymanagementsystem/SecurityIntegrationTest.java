@@ -40,6 +40,17 @@ class SecurityIntegrationTest {
     }
 
     @Test
+    void auditHistoryIsRestrictedToAdministrators() throws Exception {
+        mockMvc.perform(get("/audit"))
+                .andExpect(status().isUnauthorized());
+
+        mockMvc.perform(get("/audit")
+                        .with(SecurityMockMvcRequestPostProcessors.httpBasic("test-admin", "test-password")))
+                .andExpect(status().isOk())
+                .andExpect(view().name("audit"));
+    }
+
+    @Test
     void healthEndpointIsPublic() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
