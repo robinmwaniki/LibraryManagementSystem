@@ -143,7 +143,8 @@ public class BorrowingService {
     }
 
     private String borrowingSummary(BorrowingRecord record) {
-        return "bookId=" + record.getBook().getId() + ",memberId=" + record.getMember().getId()
+        return "bookId=" + (record.getBook() == null ? "unknown" : record.getBook().getId())
+                + ",memberId=" + (record.getMember() == null ? "unknown" : record.getMember().getId())
                 + ",status=" + record.getStatus() + ",dueDate=" + record.getDueDate()
                 + ",fine=" + record.getFine();
     }
