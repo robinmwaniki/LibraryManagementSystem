@@ -6,6 +6,7 @@ import com.example.librarymanagementsystem.model.FinePayment;
 import com.example.librarymanagementsystem.repository.BorrowingRepository;
 import com.example.librarymanagementsystem.repository.FineAdjustmentRepository;
 import com.example.librarymanagementsystem.repository.FinePaymentRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,6 +25,9 @@ class FineLedgerServiceTest {
     @Mock private FineAdjustmentRepository adjustmentRepository;
     @Mock private AuditService auditService;
     @InjectMocks private FineLedgerService fineLedgerService;
+
+    @BeforeEach
+    void injectAuditService() { fineLedgerService.setAuditService(auditService); }
 
     @Test
     void recordsPartialPaymentWithoutChangingAssessedFine() {
