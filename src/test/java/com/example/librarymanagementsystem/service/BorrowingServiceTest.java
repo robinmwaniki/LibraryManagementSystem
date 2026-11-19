@@ -30,6 +30,7 @@ class BorrowingServiceTest {
     @Mock private MemberRepository memberRepository;
     @Mock private LibrarySettingsService librarySettingsService;
     @Mock private ReservationService reservationService;
+    @Mock private AuditService auditService;
     @InjectMocks private BorrowingService borrowingService;
 
     @Test
@@ -54,6 +55,7 @@ class BorrowingServiceTest {
         assertEquals(0, book.getAvailableCopies());
         assertEquals(BorrowingRecord.BorrowStatus.BORROWED, record.getStatus());
         assertNotNull(record.getDueDate());
+        verify(auditService).record(eq("BORROW"), eq("BORROWING"), any(), isNull(), anyString());
     }
 
     @Test
