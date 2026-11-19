@@ -103,9 +103,7 @@ public class ReportController {
         model.addAttribute("selectedCategory", category == null ? "" : category);
         model.addAttribute("selectedStatus", status == null ? "" : status.name());
         model.addAttribute("invalidRange", invalidRange);
-        model.addAttribute("categories", bookRepository.findAll().stream()
-                .map(Book::getCategory).filter(Objects::nonNull)
-                .filter(value -> !value.isBlank()).distinct().sorted().toList());
+        model.addAttribute("categories", bookRepository.findDistinctCategories());
         return "reports";
     }
 
