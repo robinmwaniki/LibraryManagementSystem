@@ -22,6 +22,7 @@ class FineLedgerServiceTest {
     @Mock private BorrowingRepository borrowingRepository;
     @Mock private FinePaymentRepository paymentRepository;
     @Mock private FineAdjustmentRepository adjustmentRepository;
+    @Mock private AuditService auditService;
     @InjectMocks private FineLedgerService fineLedgerService;
 
     @Test
@@ -38,6 +39,7 @@ class FineLedgerServiceTest {
         assertEquals("admin", payment.getRecordedBy());
         assertEquals("RCPT-1", payment.getReference());
         assertEquals(100.0, loan.getFine());
+        verify(auditService).record(eq("FINE_PAYMENT"), eq("FINE"), eq(12L), anyString(), anyString());
     }
 
     @Test
