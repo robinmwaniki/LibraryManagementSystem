@@ -143,3 +143,19 @@ Content-Type: application/json
 ```
 
 Read the current balance and ledger history with `GET /api/fines/42/balance`, `GET /api/fines/42/payments`, and `GET /api/fines/42/adjustments`. A member's aggregate outstanding balance is available at `GET /api/fines/members/7/balance`. Fine ledger endpoints require the ADMIN role.
+
+
+## Reporting filters and CSV exports
+
+The reports page supports optional inclusive start and end dates, exact book category, and borrowing status (`BORROWED` or `RETURNED`). The end date is converted to midnight at the start of the following day and used as an exclusive upper bound, so all records on the selected end date are included. A start date later than the end date displays a validation error and returns no report rows. CSV export uses the same filters and date semantics.
+
+Filtered reporting includes borrowing activity, overdue counts within the result set, recorded fines, the most-borrowed titles, and the most active members. The existing unfiltered overdue-loans CSV remains available at `/reports/overdue.csv`.
+
+CSV text fields are quoted and embedded quotes are doubled. Text beginning with spreadsheet formula initiators (`=`, `+`, `-`, `@`, tab, carriage return, or line feed) is prefixed with an apostrophe to reduce CSV formula-injection risk. `ReportControllerTest` covers inclusive end-date handling, invalid ranges, export filtering, and formula-injection mitigation.
+
+Example requests:
+
+```http
+GET /reports?startDate=2026-11-01&endDate=2026-11-30&category=Technology&status=RETURNED
+GET /reports/export.csv?startDate=2026-11-01&endDate=2026-11-30&category=Technology&status=RETURNED
+```
