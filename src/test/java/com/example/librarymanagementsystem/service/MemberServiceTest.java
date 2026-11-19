@@ -31,6 +31,9 @@ class MemberServiceTest {
     @Mock
     private BorrowingRepository borrowingRepository;
 
+    @Mock
+    private AuditService auditService;
+
     @InjectMocks
     private MemberService memberService;
 
@@ -46,6 +49,7 @@ class MemberServiceTest {
         assertEquals("Mwaniki", created.getLastName());
         assertEquals(Member.MembershipStatus.ACTIVE, created.getStatus());
         verify(memberRepository).save(any(Member.class));
+        verify(auditService).record(eq("CREATE"), eq("MEMBER"), any(), isNull(), anyString());
     }
 
     @Test
