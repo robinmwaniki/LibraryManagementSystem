@@ -159,3 +159,6 @@ Actuator exposes health, info, metrics, and Prometheus metrics. The health endpo
 Set SENTRY_DSN and temporarily set LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=true. Sign in as an administrator and send a CSRF-protected POST request to /api/diagnostics/sentry-test. The endpoint is absent by default, is administrator-only when enabled, and sends one generic controlled exception. Confirm it appears in the configured Sentry environment, then set the flag back to false and redeploy.
 
 The Sentry Developer plan is free but has monthly event quotas. This project keeps performance tracing disabled by default and sends error events only; monitor usage and adjust SENTRY_ERROR_SAMPLE_RATE if needed. Events dropped after the free quota is reached are not queued for later delivery.
+
+
+For Render deployments, add SENTRY_DSN (optional), SENTRY_ENVIRONMENT, SENTRY_RELEASE, SENTRY_ERROR_SAMPLE_RATE, and SENTRY_TRACES_SAMPLE_RATE as service environment variables. Leave the DSN empty to keep Sentry disabled. Also keep LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=false except during a controlled administrator-only delivery test.
