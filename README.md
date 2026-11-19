@@ -142,3 +142,23 @@ The restore script validates the archive, confirms the destination, creates a mi
 - Docker named volumes provide persistence across container recreation; they are not independent backups and do not protect against volume deletion, host failure, ransomware, or operator error.
 - Keep more than one dated backup, define retention and recovery-point objectives, and periodically test restoration into an isolated database.
 - Never commit real database dumps or credentials to the repository.
+
+
+## Error monitoring and operational logs
+
+Sentry error reporting is optional. The application starts normally when SENTRY_DSN is blank. To enable it, create a Sentry Java/Spring Boot project and set SENTRY_DSN in your deployment environment or local .env file. Do not commit the DSN or other secrets. Configure SENTRY_ENVIRONMENT and SENTRY_RELEASE for each deployment.
+
+The project uses structured JSON logs on stdout. Each request receives a validated X-Correlation-ID (or a generated UUID), which is returned in the response and included in the JSON log MDC. Forward container stdout to your log platform and retain the correlation ID when searching across log events.
+
+Privacy defaults are intentionally restrictive: Sentry default PII collection is disabled, request bodies are not sent, request/user context and breadcrumbs are removed by the before-send filter, and free-form exception messages are redacted while exception types and stack frames remain. Do not add member details, credentials, session IDs, or payment data to log messages or custom Sentry tags/extras.
+
+Actuator exposes health, info, metrics, and Prometheus metrics. The health endpoint is public but component details are hidden; the other actuator endpoints require authentication. No database URL, credentials, or detailed health information is exposed publicly.
+
+### Verify Sentry delivery
+
+Set SENTRY_DSN and temporarily set LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=true. Sign in as an administrator and send a CSRF-protected POST request to /api/diagnostics/sentry-test. The endpoint is absent by default, is administrator-only when enabled, and sends one generic controlled exception. Confirm it appears in the configured Sentry environment, then set the flag back to false and redeploy.
+
+The Sentry Developer plan is free but has monthly event quotas. This project keeps performance tracing disabled by default and sends error events only; monitor usage and adjust SENTRY_ERROR_SAMPLE_RATE if needed. Events dropped after the free quota is reached are not queued for later delivery.
+
+
+For Render deployments, add SENTRY_DSN (optional), SENTRY_ENVIRONMENT, SENTRY_RELEASE, SENTRY_ERROR_SAMPLE_RATE, and SENTRY_TRACES_SAMPLE_RATE as service environment variables. Leave the DSN empty to keep Sentry disabled. Also keep LIBRARY_OBSERVABILITY_TEST_ENDPOINT_ENABLED=false except during a controlled administrator-only delivery test.

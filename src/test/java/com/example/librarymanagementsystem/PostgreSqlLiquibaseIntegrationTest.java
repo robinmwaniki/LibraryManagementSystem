@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The test is skipped automatically on machines without a Docker daemon.
  */
 @Testcontainers(disabledWithoutDocker = true)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest
 class PostgreSqlLiquibaseIntegrationTest {
 
     @Container
