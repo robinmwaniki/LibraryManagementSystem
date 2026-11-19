@@ -194,7 +194,7 @@ public class ReservationService {
         LocalDateTime now = LocalDateTime.now();
         List<BookReservation> expiredCandidates = reservationRepository
                 .findExpiredReadyReservations(ReservationStatus.READY, now);
-        expiredCandidates.stream().map(r -> r.getBook().getId()).distinct()
+        expiredCandidates.stream().map(r -> r.getBook().getId()).distinct().sorted()
                 .forEach(bookId -> {
                     lockBook(bookId);
                     expireReservationsForBook(bookId, now);
