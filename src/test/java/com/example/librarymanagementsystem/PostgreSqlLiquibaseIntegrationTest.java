@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -272,7 +273,7 @@ class PostgreSqlLiquibaseIntegrationTest {
         return memberRepository.saveAndFlush(member);
     }
 
-    private long runTwoConcurrently(Runnable operation) throws InterruptedException, ExecutionException {
+    private long runTwoConcurrently(Runnable operation) throws InterruptedException, ExecutionException, TimeoutException {
         ExecutorService executor = Executors.newFixedThreadPool(2);
         CountDownLatch ready = new CountDownLatch(2);
         CountDownLatch start = new CountDownLatch(1);
