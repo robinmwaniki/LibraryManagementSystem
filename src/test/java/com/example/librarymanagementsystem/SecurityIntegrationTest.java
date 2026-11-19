@@ -42,8 +42,7 @@ class SecurityIntegrationTest {
     @Test
     void auditHistoryIsRestrictedToAdministrators() throws Exception {
         mockMvc.perform(get("/audit"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrlPattern("**/login"));
+                .andExpect(status().isUnauthorized());
 
         mockMvc.perform(get("/audit")
                         .with(SecurityMockMvcRequestPostProcessors.httpBasic("test-admin", "test-password")))
