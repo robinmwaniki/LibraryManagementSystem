@@ -24,7 +24,7 @@ class ReportControllerTest {
         BorrowingRepository borrowings = mock(BorrowingRepository.class);
         BorrowingService borrowingService = mock(BorrowingService.class);
         when(borrowings.findReportBorrowings(any(), any(), any(), any())).thenReturn(List.of());
-        when(books.findAll()).thenReturn(List.of());
+        when(books.findDistinctCategories()).thenReturn(List.of());
         ReportController controller = new ReportController(books, members, borrowings, borrowingService);
         controller.reports(LocalDate.of(2026, 11, 1), LocalDate.of(2026, 11, 30),
                 " Technology ", BorrowingRecord.BorrowStatus.RETURNED, new ExtendedModelMap());
