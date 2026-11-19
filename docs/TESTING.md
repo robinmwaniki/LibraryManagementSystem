@@ -168,3 +168,31 @@ Important catalogue, member, circulation, and fine-ledger operations write an au
 Audit history is available to administrators at `/audit`. Filters include inclusive date range, actor username, action, record type, and record ID. Results are newest first and paginated. The audit repository exposes only insert and search operations; the application does not provide audit edit or delete actions. The Liquibase migration creates indexes for time, actor/action, and record lookups.
 
 `AuditServiceTest` verifies actor attribution and secret redaction. `AuditControllerTest` verifies search filters and inclusive end-date handling. Service tests verify that book updates, member registration, borrowing, and fine payments emit audit events. `SecurityIntegrationTest` verifies that the audit screen redirects anonymous users to sign-in and is available to the configured administrator. The PostgreSQL integration test verifies the audit table and migration count.
+
+
+## PostgreSQL backup and restore verification
+
+The Docker Compose database service is named postgres. The backup script runs pg_dump in custom archive format against the live database; it does not stop the application. It writes to a temporary file with restrictive permissions, validates the archive with pg_restore --list, and only then publishes the final dump.
+
+```bash
+bash scripts/backup-postgres.sh
+bash scripts/backup-postgres.sh backups/before-release.dump
+bash scripts/restore-postgres.sh backups/before-release.dump library_restore_check
+bash scripts/restore-postgres.sh backups/before-release.dump
+```
+
+The restore script requires an existing backup file, validates the archive, validates the target database identifier, creates the target database when absent, and restores with --clean --if-exists --single-transaction --exit-on-error. By default the target is the configured application database; the script requires the operator to type RESTORE before proceeding. Use a separate target database first when validating a recovery. Restoring to the configured live database replaces objects from the archive and should only be done after writes have been stopped or the application has been put into maintenance mode.
+
+The CI smoke test inserts a known book, member, and borrowing record, takes a backup while the database remains online, restores into a separate clean database, and verifies all three record types. The smoke test runs after the Docker Compose health check.
+
+### Recovery checklist
+
+1. Identify the required recovery point and select a verified backup from protected storage.
+2. Confirm the target PostgreSQL version and available disk space.
+3. Keep the application in maintenance mode or stop application writes.
+4. Restore into a clean, isolated database first and validate books, members, borrowing records, fine ledger, audit history, and Liquibase metadata.
+5. Update the application database connection only after verification; restart and check /actuator/health.
+6. Validate sign-in, catalogue search, member records, circulation, and reports before reopening traffic.
+7. Retain the pre-restore database snapshot until recovery is accepted.
+
+Backup files contain library and member records and must be treated as sensitive data. Store them outside the repository, restrict access, encrypt them at rest and during transfer, and maintain an off-host/off-site copy. Do not include credentials or .env files in backups or commit dump files. The Docker named volume postgres_data is persistent storage, not a backup: deleting the volume or losing the Docker host can destroy the data.
